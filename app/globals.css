@@ -263,6 +263,40 @@ header.scrolled .logo-img {
   /* Logotipo menor quando rola */
 }
 
+/* ---------- Preloader de Abertura ---------- */
+#preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #000000;
+  pointer-events: all;
+}
+
+#preloader-glow {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(0, 174, 238, 0.28) 0%, rgba(0, 0, 0, 0) 70%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(30px);
+  opacity: 0;
+}
+
+/* Header elevado acima do overlay durante o preloader */
+header.preloader-active {
+  z-index: 10000 !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom-color: transparent !important;
+  box-shadow: none !important;
+  transition: none !important;
+}
+
 nav.main-nav {
   display: flex;
   align-items: center;
@@ -2002,3 +2036,139 @@ input[type="range"]::-moz-range-thumb {
     transform: none !important;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   COTAS CONTEMPLADAS — CTA compacto entre quem-somos e FAQ
+───────────────────────────────────────────────────────────────────────────── */
+.cotas-cta-section {
+  background: linear-gradient(135deg, #0b1527 0%, #0d172e 50%, #091220 100%);
+  border-top: 1px solid rgba(0, 156, 222, 0.12);
+  border-bottom: 1px solid rgba(0, 156, 222, 0.12);
+  padding: 36px 24px;
+}
+
+.cotas-cta-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+/* Ícone troféu com halo pulsante */
+.cotas-cta-icon {
+  flex-shrink: 0;
+  width: 68px;
+  height: 68px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(0, 156, 222, 0.18) 0%, rgba(0, 156, 222, 0.06) 100%);
+  border: 1px solid rgba(0, 156, 222, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #00aeee;
+  animation: cotas-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes cotas-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 156, 222, 0.25); }
+  50%       { box-shadow: 0 0 0 12px rgba(0, 156, 222, 0); }
+}
+
+/* Bloco de texto */
+.cotas-cta-text {
+  flex: 1;
+  min-width: 220px;
+}
+
+.cotas-cta-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #00aeee;
+  margin: 0 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cotas-cta-label::before {
+  content: '';
+  display: inline-block;
+  width: 20px;
+  height: 2px;
+  background: #00aeee;
+  border-radius: 2px;
+}
+
+.cotas-cta-title {
+  font-size: clamp(18px, 2.5vw, 24px);
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 0 6px;
+  line-height: 1.25;
+}
+
+.cotas-cta-desc {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* Botão WhatsApp */
+.cotas-cta-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px;
+  background: linear-gradient(135deg, #25d366 0%, #1da851 100%);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 14px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease), filter 0.2s;
+  box-shadow: 0 8px 24px rgba(37, 211, 102, 0.28);
+}
+
+.cotas-cta-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 32px rgba(37, 211, 102, 0.4);
+  filter: brightness(1.06);
+}
+
+.cotas-cta-btn:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 640px) {
+  .cotas-cta-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .cotas-cta-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   FAQ SECTION EXPANDED & HIGHLIGHTED H1
+───────────────────────────────────────────────────────────────────────────── */
+.faq-section-expanded {
+  padding: 150px 0 !important;
+}
+
+@media (max-width: 768px) {
+  .faq-section-expanded {
+    padding: 90px 0 !important;
+  }
+}
+

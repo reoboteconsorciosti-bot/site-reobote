@@ -1,9 +1,203 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Simulator } from '@/components/site/simulator'
 import { Testimonials } from '@/components/site/testimonials'
 import { ChevronDown, Tractor, Home, Car, Truck, ArrowRight, Wheat, TrendingUp, ChevronRight, MessageCircle, ShieldCheck, Eye, Users, Award } from 'lucide-react'
+
+// ─── Preloader: animação de abertura com logo SVG via GSAP ─────────────────
+function SitePreloader() {
+  // useLayoutEffect: aplica antes do primeiro paint.
+  // Esconde a logo imediatamente para evitar flash (logo visível no header antes da animação).
+  // Limpa transforms residuais que podem surgir em hot-reloads no dev.
+  useLayoutEffect(() => {
+    const header = document.getElementById('siteHeader')
+    const logo = document.getElementById('logo-img') as HTMLImageElement | null
+    const mainNav = document.querySelector('#siteHeader .main-nav') as HTMLElement | null
+    const headerActions = document.querySelector('#siteHeader .header-actions') as HTMLElement | null
+    if (header) header.classList.add('preloader-active')
+    if (logo) {
+      logo.style.opacity = '0'        // esconde antes do paint
+      logo.style.transform = 'none'  // zera transforms residuais
+    }
+    // Oculta nav e CTA mantendo-os estáticos no flex (preserva layout)
+    if (mainNav) { mainNav.style.opacity = '0'; mainNav.style.transition = 'none' }
+    if (headerActions) { headerActions.style.opacity = '0'; headerActions.style.transition = 'none' }
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+  }, [])
+
+  useEffect(() => {
+    const cleanup = () => {
+      const logoEl = document.getElementById('logo-img') as HTMLImageElement | null
+      const header = document.getElementById('siteHeader')
+      const cloneEl = document.getElementById('preloader-logo-clone')
+      const mainNav = document.querySelector('#siteHeader .main-nav') as HTMLElement | null
+      const headerActions = document.querySelector('#siteHeader .header-actions') as HTMLElement | null
+      // Restaura logo original (remove inline styles do useLayoutEffect)
+      if (logoEl) logoEl.style.cssText = ''
+      // Remove clone se cleanup for chamado antes do onComplete (ex: safety timeout)
+      if (cloneEl) cloneEl.remove()
+      if (header) header.classList.remove('preloader-active')
+      // Restaura nav e CTA (CSS retoma controle)
+      if (mainNav) mainNav.style.cssText = ''
+      if (headerActions) headerActions.style.cssText = ''
+      document.documentElement.style.overflow = ''
+      document.body.style.overflow = ''
+    }
+
+    const runAnimation = async () => {
+      const logo = document.getElementById('logo-img') as HTMLImageElement | null
+      const preloader = document.getElementById('preloader')
+      const glow = document.getElementById('preloader-glow')
+
+      if (!logo || !preloader || !glow) {
+        cleanup()
+        return
+      }
+
+      let gsapLib: typeof import('gsap')
+      try {
+        gsapLib = await import('gsap')
+      } catch {
+        cleanup()
+        preloader.style.display = 'none'
+        return
+      }
+
+      const { gsap } = gsapLib
+
+      // Limpa transforms GSAP residuais (hot-reload no dev pode deixar resíduos)
+      gsap.set(logo, { clearProps: 'x,y,transform,width,height,filter' })
+      logo.style.opacity = '0'
+      logo.style.transform = ''
+
+      // 2 frames para layout estabilizar antes de medir a posição real
+      await new Promise<void>(res => requestAnimationFrame(() => requestAnimationFrame(() => res())))
+
+      // rect da logo original — ela nunca se moverá durante a animação
+      const rect = logo.getBoundingClientRect()
+      const vw = window.innerWidth
+      const vh = window.innerHeight
+
+      // ── CLONE: animamos uma cópia em position:fixed ───────────────────────────
+      // O #logo-img original fica com opacity:0 e estático no flex container.
+      // Isso garante que nav e header-actions nunca se deslocam durante o voo.
+      const clone = logo.cloneNode(true) as HTMLImageElement
+      clone.id = 'preloader-logo-clone'
+      clone.removeAttribute('style')
+      Object.assign(clone.style, {
+        position: 'fixed',
+        top: '0px',
+        left: '0px',
+        margin: '0',
+        padding: '0',
+        zIndex: '10001',
+        pointerEvents: 'none',
+        willChange: 'transform, opacity, filter, width, height',
+      })
+      document.body.appendChild(clone)
+
+      // Tamanho responsivo no centro (entre 140 e 260px de largura)
+      const targetW = Math.max(140, Math.min(260, vw * 0.65))
+      const targetH = targetW * (1784 / 3144) // proporção SVG: 3144×1784
+
+      const tl = gsap.timeline({
+        onComplete: () => {
+          // Sincronização perfeita: remove clone → revela original na mesma posição
+          clone.remove()
+          logo.style.opacity = '1'
+          cleanup()
+          preloader.style.display = 'none'
+        },
+      })
+
+      // ── FASE A: clone invisível, enorme e borrado no centro ─────────────────
+      // GSAP usa transform x/y (GPU) relativo a top:0 left:0
+      tl.set(clone, {
+        x: vw / 2 - (targetW * 3.6) / 2,
+        y: vh / 2 - (targetH * 2.4) / 2,
+        width: targetW * 3.6,
+        height: targetH * 2.4,
+        opacity: 0,
+        filter: 'blur(20px)',
+        transformOrigin: 'left top',
+      })
+
+      // ── FASE B: brilho aparece; clone foca e contrai ao tamanho normal ───────
+      tl.to(glow, { opacity: 1, duration: 0.6, ease: 'power2.out' })
+      tl.to(
+        clone,
+        {
+          opacity: 1,
+          filter: 'blur(0px)',
+          x: vw / 2 - targetW / 2,
+          y: vh / 2 - targetH / 2,
+          width: targetW,
+          height: targetH,
+          duration: 1.0,
+          ease: 'power3.out',
+        },
+        '-=0.4'
+      )
+
+      // Pausa breve com clone estático no centro
+      tl.to({}, { duration: 0.25 })
+
+      // ── FASE C: clone voa para a posição exata do logo original no header ───
+      // x = rect.left, y = rect.top → aterrissa pixel-perfect no elemento real
+      tl.to(clone, {
+        x: rect.left,
+        y: rect.top,
+        width: rect.width,
+        height: rect.height,
+        duration: 0.85,
+        ease: 'power3.inOut',
+      })
+
+      // Brilho azul some sincronizado com o voo
+      tl.to(glow, { opacity: 0, duration: 0.5, ease: 'power2.out' }, '-=0.85')
+
+      // Overlay preto faz fade out
+      tl.to(preloader, { opacity: 0, duration: 0.6, ease: 'power2.out' }, '-=0.5')
+
+      // Nav e CTA revelados junto com o fade-out do preloader
+      tl.to(
+        ['#siteHeader .main-nav', '#siteHeader .header-actions'],
+        { opacity: 1, duration: 0.5, ease: 'power2.out' },
+        '-=0.4'
+      )
+    }
+
+    // Safety timeout: remove preloader em 8s se algo travar
+    const safetyId = window.setTimeout(() => {
+      cleanup()
+      const p = document.getElementById('preloader')
+      if (p) p.style.display = 'none'
+    }, 8000)
+
+    const start = () => {
+      runAnimation().finally(() => window.clearTimeout(safetyId))
+    }
+
+    if (document.readyState === 'complete') {
+      start()
+    } else {
+      window.addEventListener('load', start, { once: true })
+    }
+
+    return () => {
+      window.removeEventListener('load', start)
+      window.clearTimeout(safetyId)
+    }
+  }, [])
+
+  return (
+    <div id="preloader" aria-hidden="true">
+      <div id="preloader-glow" />
+    </div>
+  )
+}
 
 // Componente de revelação Hacker/Criptografada para números
 function HackerNumber({ value }: { value: string }) {
@@ -76,7 +270,7 @@ function HackerNumber({ value }: { value: string }) {
 }
 
 const soldStatesData = [
-  { uf: 'MS', name: 'Mato Grosso do Sul', top: '63.6%', left: '50.0%',},
+  { uf: 'MS', name: 'Mato Grosso do Sul', top: '63.6%', left: '50.0%', },
   { uf: 'AM', name: 'Amazonas', top: '23.1%', left: '22.6%' },
   { uf: 'SP', name: 'São Paulo', top: '68.8%', left: '60%' },
   { uf: 'GO', name: 'Goiás', top: '53.0%', left: '55%' },
@@ -91,8 +285,8 @@ const soldStatesData = [
   { uf: 'RJ', name: 'Rio de Janeiro', top: '65%', left: '70%' },
   { uf: 'PA', name: 'Pará', top: '23.1%', left: '49%' },
   { uf: 'AC', name: 'Acre', top: '34.8%', left: '22%' },
-  { uf: 'MA', name: 'Maranhão', top: '25.8%', left: '74.9%',},
-  { uf: 'ES', name: 'Espírito Santo', top: '60.9%', left: '72%',},
+  { uf: 'MA', name: 'Maranhão', top: '25.8%', left: '74.9%', },
+  { uf: 'ES', name: 'Espírito Santo', top: '60.9%', left: '72%', },
 ]
 
 // Dados de unidades por estado
@@ -174,30 +368,8 @@ export default function Page() {
   // Referências
   const headerRef = useRef<HTMLElement>(null)
   const mapCanvasRef = useRef<HTMLDivElement>(null)
-  const splashVideoRef = useRef<HTMLVideoElement>(null)
   const [testimonialIndex, setTestimonialIndex] = useState(0)
   const [headerScrolled, setHeaderScrolled] = useState(false)
-
-  // Splash Screen states
-  const [splashVisible, setSplashVisible] = useState(true)
-  const [splashFadingOut, setSplashFadingOut] = useState(false)
-  const [splashVideoAttempt, setSplashVideoAttempt] = useState(0)
-
-  const splashVideoSrc = splashVideoAttempt
-    ? `/videos/logoAnimada/LOGO SITE NOVO 2 (1).mp4?v=${splashVideoAttempt}`
-    : '/videos/logoAnimada/LOGO SITE NOVO 2 (1).mp4'
-
-  const dismissSplash = () => {
-    if (splashFadingOut) return
-    setSplashFadingOut(true)
-    window.setTimeout(() => {
-      setSplashVisible(false)
-    }, 650)
-  }
-
-  const handleSplashEnded = () => {
-    dismissSplash()
-  }
 
   // Scroll reveal
   useEffect(() => {
@@ -222,34 +394,7 @@ export default function Page() {
     return () => window.removeEventListener('scroll', checkReveal)
   }, [])
 
-  // Splash timeout fallback — garante dismiss mesmo se vídeo travar/não carregar
-  useEffect(() => {
-    if (!splashVisible) return
 
-    // Aplica velocidade 2x no vídeo quando disponível
-    if (splashVideoRef.current) {
-      try {
-        splashVideoRef.current.playbackRate = 2
-      } catch {}
-    }
-
-    // Timeout reduzido p/ vídeo em 2x (metade + margem segura)
-    const timer = window.setTimeout(() => {
-      dismissSplash()
-    }, 5500)
-
-    // Bloqueia scroll enquanto splash está ativa
-    const originalOverflow = document.documentElement.style.overflow
-    document.documentElement.style.overflow = 'hidden'
-    document.body.style.overflow = 'hidden'
-
-    return () => {
-      window.clearTimeout(timer)
-      document.documentElement.style.overflow = originalOverflow
-      document.body.style.overflow = ''
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [splashVisible])
 
   // Header scroll effect
   useEffect(() => {
@@ -324,157 +469,14 @@ export default function Page() {
 
   return (
     <>
-      {splashVisible && (
-        <div
-          onClick={dismissSplash}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            background: '#000000',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden',
-            cursor: 'pointer',
-            opacity: splashFadingOut ? 0 : 1,
-            transition: 'opacity 1000ms cubic-bezier(0.16, 1, 0.3, 1), visibility 650ms cubic-bezier(0.16, 1, 0.3, 1)',
-            visibility: splashFadingOut ? 'hidden' : 'visible',
-            pointerEvents: splashFadingOut ? 'none' : 'auto',
-            margin: 0,
-            padding: 0,
-          }}
-          aria-label="Tela de apresentação — clique para pular"
-          role="presentation"
-        >
-          {/* Radial glow de fundo */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'radial-gradient(circle at center, rgba(0, 156, 222, 0.15) 0%, rgba(0, 0, 0, 0) 60%)',
-              pointerEvents: 'none',
-            }}
-          />
-
-          {/* Vídeo em TELA CHEIA (cover) — ocupa 100% da viewport como F11 */}
-          <video
-            ref={splashVideoRef}
-            key={splashVideoAttempt}
-            src={splashVideoSrc}
-            autoPlay
-            muted
-            playsInline
-            preload="auto"
-            onEnded={handleSplashEnded}
-            onError={() => {
-              if (splashVideoAttempt >= 1) {
-                dismissSplash()
-                return
-              }
-              setSplashVideoAttempt(splashVideoAttempt + 1)
-            }}
-            onLoadedMetadata={(e) => {
-              try {
-                ;(e.currentTarget as HTMLVideoElement).playbackRate = 2
-              } catch {}
-            }}
-            onCanPlay={(e) => {
-              const v = e.currentTarget as HTMLVideoElement
-              try {
-                v.playbackRate = 2
-              } catch {}
-              v.play().catch(() => {})
-            }}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              zIndex: 2,
-              width: '100vw',
-              height: '100vh',
-              objectFit: 'cover',
-              userSelect: 'none',
-              WebkitUserSelect: 'none',
-              pointerEvents: 'none',
-            }}
-          />
-
-          {/* Texto "pular" no canto */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '32px',
-              right: '36px',
-              zIndex: 3,
-              color: 'rgba(255,255,255,0.55)',
-              fontSize: '12px',
-              fontWeight: 600,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              opacity: splashFadingOut ? 0 : 1,
-              transition: 'opacity 400ms ease',
-              animation: 'pulseSplashText 2.4s ease-in-out infinite',
-              pointerEvents: 'none',
-            }}
-          >
-            <span>Clique ou toque para pular</span>
-            <span
-              style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                background: '#009CDE',
-                boxShadow: '0 0 12px rgba(0,156,222,0.7)',
-              }}
-            />
-          </div>
-
-          {/* Loader sutil caso o vídeo demore (antes do autoplay) */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              zIndex: 3,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              pointerEvents: 'none',
-            }}
-          >
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                border: '2px solid rgba(255,255,255,0.12)',
-                borderTopColor: '#009CDE',
-                borderRadius: '50%',
-                animation: 'spinSplash 900ms linear infinite',
-              }}
-            />
-          </div>
-
-          {/* Keyframes injetados inline (sem precisar editar globals.css) */}
-          <style>{`
-            @keyframes spinSplash {
-              to { transform: rotate(360deg); }
-            }
-            @keyframes pulseSplashText {
-              0%, 100% { opacity: 0.45; }
-              50% { opacity: 0.85; }
-            }
-          `}</style>
-        </div>
-      )}
-
+      <SitePreloader />
       <header id="siteHeader" ref={headerRef}>
         <div className="container nav-wrap">
           <a href="#topo" aria-label="Reobote Consórcios">
+            {/* Logo SVG permanente — alterna para icon-dark.svg no scroll (fundo claro/branco) */}
             <img
-              src={headerScrolled ? "/images/logo/LOGO-PRETA.png" : "/images/logo/LOGO-BRANCA.png"}
+              id="logo-img"
+              src={headerScrolled ? "/images/abertura/icon-dark.svg" : "/images/abertura/icon.svg"}
               alt="Reobote Consórcios"
               className="logo-img"
             />
@@ -559,7 +561,7 @@ export default function Page() {
                 O consórcio inteligente para conquistar <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 font-black">patrimônio</span> com planejamento.
               </h1>
 
-              
+
 
               {/* Tags de Categorias Rápidas */}
               <div className="flex flex-wrap gap-2.5 pt-2">
@@ -911,6 +913,42 @@ export default function Page() {
           </main>
         </section>
 
+        <section id="cotas-contempladas" className="cotas-cta-section">
+          <div className="cotas-cta-inner">
+            {/* Ícone pulsante */}
+            <div className="cotas-cta-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                <path d="M4 22h16" />
+                <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+                <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+                <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+              </svg>
+            </div>
+
+            {/* Texto */}
+            <div className="cotas-cta-text">
+              <p className="cotas-cta-label">Oportunidade exclusiva</p>
+              <h2 className="cotas-cta-title">Veja as cotas contempladas disponíveis</h2>
+              <p className="cotas-cta-desc">
+                Cartas de crédito já aprovadas esperando por você — compre um bem agora sem esperar sorteio.
+              </p>
+            </div>
+
+            {/* Botão CTA */}
+            <a
+              id="btn-cotas-contempladas"
+              href="https://cartascontempladas.reoboteconsorcios.com.br/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-primary"
+            >
+              Consultar cotas disponíveis
+            </a>
+          </div>
+        </section>
+
         {/* DEPOIMENTOS EM VÍDEO (CARROSSEL TRACK) */}
         <Testimonials />
 
@@ -963,11 +1001,14 @@ export default function Page() {
 
         </section>
 
-        <section id="faq" className="bg-soft">
+
+        <section id="faq" className="bg-soft faq-section-expanded">
           <div className="container">
-            <div className="section-head center reveal">
+            <div className="section-head center reveal text-center max-w-3xl mx-auto mb-16">
               <span className="section-tag">Dúvidas frequentes</span>
-              <h2>Tudo o que você precisa saber sobre consórcios.</h2>
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-[1.25] mt-4">
+                Principais dúvidas sobre <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 font-black">consórcios</span>.
+              </h1>
             </div>
             <div className="faq-list">
               <div className="faq-item" onClick={() => handleFaqToggle(0)}>
