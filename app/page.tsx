@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Simulator } from '@/components/site/simulator'
 import { Testimonials } from '@/components/site/testimonials'
 import { ChevronDown, Tractor, Home, Car, Truck, ArrowRight, Wheat, TrendingUp, ChevronRight, MessageCircle, ShieldCheck, Eye, Users, Award } from 'lucide-react'
+import { MobileMenu } from './reponsive'
 
 // ─── Preloader: animação de abertura com logo SVG via GSAP ─────────────────
 function SitePreloader() {
@@ -370,6 +371,9 @@ export default function Page() {
   const mapCanvasRef = useRef<HTMLDivElement>(null)
   const [testimonialIndex, setTestimonialIndex] = useState(0)
   const [headerScrolled, setHeaderScrolled] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), [])
+  const toggleMobileMenu = useCallback(() => setMobileMenuOpen((v) => !v), [])
 
   // Scroll reveal
   useEffect(() => {
@@ -524,11 +528,19 @@ export default function Page() {
               <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.28-1.39a9.9 9.9 0 004.76 1.21h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2zm5.8 14.05c-.24.68-1.4 1.3-1.93 1.38-.5.08-1.1.11-1.77-.11-.41-.13-.94-.3-1.62-.6-2.85-1.23-4.71-4.1-4.85-4.29-.14-.19-1.16-1.54-1.16-2.94s.72-2.08.98-2.37c.25-.28.55-.35.74-.35.19 0 .37 0 .53.01.17.01.4-.06.62.48.24.58.81 2 .88 2.14.07.14.11.31.02.5-.08.19-.13.31-.26.47-.13.16-.27.36-.39.48-.13.13-.26.27-.11.53.14.26.64 1.07 1.38 1.74.95.86 1.76 1.13 2.02 1.26.26.13.41.11.56-.07.16-.18.65-.77.83-1.03.18-.26.35-.22.6-.13.24.09 1.55.74 1.82.88.26.13.44.19.5.3.06.11.06.66-.18 1.34z" /></svg>
               WhatsApp
             </a>
-            <button className="mobile-toggle" id="mobileToggle" aria-label="Abrir menu">
+            <button
+              type="button"
+              className="mobile-toggle"
+              id="mobileToggle"
+              aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
+              aria-expanded={mobileMenuOpen}
+              onClick={toggleMobileMenu}
+            >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
           </div>
         </div>
+        <MobileMenu open={mobileMenuOpen} onClose={closeMobileMenu} />
       </header>
 
       <main id="topo">
@@ -541,7 +553,7 @@ export default function Page() {
             <img
               src="/images/DSC_5156.jpg.jpeg"
               alt="Fundadores Reobote"
-              className="absolute right-0 bottom-0 w-full max-w-[700px] md:max-w-[850px] h-auto object-contain opacity-65 z-10 select-none pointer-events-none translate-y-52"
+              className="absolute bottom-0 right-1/2 w-full max-w-[420px] translate-x-1/2 object-contain opacity-45 select-none pointer-events-none translate-y-24 sm:max-w-[560px] sm:opacity-55 sm:translate-y-32 md:right-0 md:max-w-[700px] md:translate-x-0 md:opacity-65 md:translate-y-40 lg:max-w-[850px] lg:translate-y-52 z-10 h-auto"
             />
           </div>
 
@@ -630,7 +642,7 @@ export default function Page() {
         </section>
 
         {/* SEÇÃO PRESENÇA NACIONAL */}
-        <section id="mapa" className="relative w-full bg-white py-20 lg:py-32 overflow-hidden select-none">
+        <section id="mapa" className="relative w-full bg-white py-20 lg:py-32 select-none">
 
           {/* BACKGROUND DESIGN SYSTEM: Linhas finas e blur premium */}
           <div className="absolute inset-0 pointer-events-none z-0">
@@ -716,17 +728,17 @@ export default function Page() {
                   </div>
                 </div>
 
-                <a href="https://wa.me/5567981156454" target="_blank" rel="noopener noreferrer" className="w-full sm:w-fit px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-[0_10px_25px_rgba(37,99,235,0.2)] transition-all duration-200 transform hover:-translate-y-0.5 text-center">
+                <a href="https://wa.me/5567981156454" target="_blank" rel="noopener noreferrer" className="w-full sm:w-fit px-8 py-4 bg-blue-600 hover:bg-blue-700 font-bold text-white rounded-2xl shadow-[0_10px_25px_rgba(37,99,235,0.2)] transition-all duration-200 transform hover:-translate-y-0.5 text-center">
                   Falar com um especialista
                 </a>
               </div>
 
               {/* LADO DIREITO: Container do Mapa com Pins Interativos */}
-              <div className="lg:col-span-7 relative w-full aspect-[4/3] max-w-[680px] mx-auto bg-slate-50/60 rounded-[2.5rem] border border-slate-100 p-6 flex items-center justify-center">
+              <div className="lg:col-span-7 relative w-full aspect-[4/3] min-h-[320px] sm:min-h-[420px] max-w-[680px] mx-auto bg-slate-50/60 rounded-[2.5rem] border border-slate-100 p-3 sm:p-5 lg:p-6 flex items-center justify-center">
                 <div className="relative aspect-[353.845/367.766] w-full max-h-full flex items-center justify-center">
 
                   {/* SVG do Mapa Oficial e Geograficamente Correto */}
-                  <svg viewBox="0 0 353.845 367.766" className="w-full h-full fill-slate-200 stroke-white stroke-[0.5] select-none">
+                  <svg viewBox="0 0 353.845 367.766" preserveAspectRatio="xMidYMid meet" className="w-full h-full fill-slate-200 stroke-white stroke-[0.5] select-none">
                     <g id="statesGroup">
                       <polygon id="uf-MG" data-uf="MG" data-name="Minas Gerais" className="hover:fill-blue-500/30 transition-colors duration-200 cursor-pointer" points="248.729,178.317 247.68,179.172 248.918,181.266 248.062,182.216 246.159,181.266 244.353,183.167 246.159,184.404 244.826,185.83 246.159,187.733 245.303,189.541 243.876,190.873 242.067,192.205 241.782,193.916 240.261,194.393 239.975,196.01 242.258,197.816 242.163,200.102 240.545,202.004 239.118,202.383 239.118,204.764 241.498,203.811 242.067,205.809 239.784,207.713 240.83,209.328 240.07,211.518 235.883,214.467 233.98,213.516 229.129,212.943 225.704,215.799 218.092,217.797 214.478,218.938 211.147,222.84 209.815,227.217 208.959,230.164 214.001,228.549 217.711,228.645 220.851,229.689 222.183,231.688 229.795,232.543 235.503,230.736 241.688,230.928 241.688,232.447 242.733,234.637 242.163,237.967 243.685,240.346 247.301,241.391 248.156,245.293 246.92,249.383 249.107,254.141 254.436,251.857 254.816,249.764 258.433,249.191 260.715,250.906 265.853,249.383 273.272,247.385 278.269,247.242 282.265,244.531 284.119,245.814 286.118,244.104 286.118,240.965 288.259,239.25 286.831,237.537 287.545,236.396 290.874,235.969 290.685,230.928 291.35,230.832 295.061,230.164 296.012,225.979 298.866,223.6 298.486,220.461 296.772,218.844 296.108,216.654 298.01,214.943 297.249,212.373 298.392,211.424 300.484,212.088 301.911,211.328 300.77,209.9 300.389,208.189 305.525,209.9 306.668,207.902 305.146,206.189 303.195,206.666 302.243,202.193 303.456,198.84 305.645,198.555 306.097,196.865 305.43,195.629 307.619,192.68 306.572,190.018 302.768,189.73 302.102,188.018 298.676,186.972 298.296,188.398 295.537,188.209 294.396,186.496 294.396,185.449 289.923,181.835 286.402,183.453 283.93,180.694 281.171,179.458 280.79,177.651 277.649,176.89 275.177,178.602 272.988,177.84 272.132,175.558 269.277,174.893 264.615,176.605 264.141,178.602 259.384,180.409 256.909,182.693 255.293,182.501 252.914,184.023 251.582,183.548 252.628,181.266 251.012,180.79"></polygon>
                       <polygon id="uf-GO" data-uf="GO" data-name="Goiás" className="hover:fill-blue-500/30 transition-colors duration-200 cursor-pointer" points="237.787,165.188 234.456,165.283 233.886,163.38 229.033,165.093 227.987,160.526 224.942,160.24 222.088,164.902 215.523,162.143 215.904,157.576 213.525,161.787 211.718,164.997 212.003,166.996 210.291,168.898 210.386,172.037 208.77,174.606 209.244,177.747 206.2,182.122 204.297,181.551 202.299,183.453 202.013,186.876 201.158,188.686 197.352,189.256 195.448,191.252 194.117,192.395 194.021,195.059 190.692,195.916 190.216,197.912 190.407,198.959 188.123,200.006 187.743,202.193 188.218,206.379 189.359,207.426 189.359,208.854 188.028,209.9 188.693,212.66 190.026,211.898 191.453,213.135 191.644,215.514 196.923,216.703 199.635,219.271 203.346,219.414 206.058,222.125 211.147,222.84 214.478,218.938 218.092,217.797 225.704,215.799 229.129,212.943 233.98,213.516 235.883,214.467 240.07,211.518 240.83,209.328 239.784,207.713 242.067,205.809 241.498,203.811 239.118,204.764 239.118,202.383 240.545,202.004 242.163,200.102 242.258,197.816 239.975,196.01 240.261,194.393 241.782,193.916 241.782,193.916 240.261,194.393 239.975,196.01 242.258,197.816 242.163,200.102 240.545,202.004 239.118,202.383 239.118,204.764 241.498,203.811 242.067,205.809 239.784,207.713 240.83,209.328 240.07,211.518 235.883,214.467 233.98,213.516 229.129,212.943 225.704,215.799 218.092,217.797 214.478,218.938 211.147,222.84 209.815,227.217 208.959,230.164 214.001,228.549 217.711,228.645 220.851,229.689 222.183,231.688 229.795,232.543 235.503,230.736 241.688,230.928 241.688,232.447 242.733,234.637 242.163,237.967 243.685,240.346 247.301,241.391 248.156,245.293 246.92,249.383 249.107,254.141 254.436,251.857 254.816,249.764 258.433,249.191 260.715,250.906 265.853,249.383 273.272,247.385 278.269,247.242 282.265,244.531 284.119,245.814 286.118,244.104 286.118,240.965 288.259,239.25 286.831,237.537 287.545,236.396 290.874,235.969 290.685,230.928 291.35,230.832 295.061,230.164 296.012,225.979 298.866,223.6 298.486,220.461 296.772,218.844 296.108,216.654 298.01,214.943 297.249,212.373 298.392,211.424 300.484,212.088 301.911,211.328 300.77,209.9 300.389,208.189 305.525,209.9 306.668,207.902 305.146,206.189 303.195,206.666 302.243,202.193 303.456,198.84 305.645,198.555 306.097,196.865 305.43,195.629 307.619,192.68 306.572,190.018 302.768,189.73 302.102,188.018 298.676,186.972 298.296,188.398 295.537,188.209 294.396,186.496 294.396,185.449 289.923,181.835 286.402,183.453 283.93,180.694 281.171,179.458 280.79,177.651 277.649,176.89 275.177,178.602 272.988,177.84 272.132,175.558 269.277,174.893 264.615,176.605 264.141,178.602 259.384,180.409 256.909,182.693 255.293,182.501 252.914,184.023 251.582,183.548 252.628,181.266 251.012,180.79"></polygon>
@@ -1095,7 +1107,7 @@ export default function Page() {
             <div className="footer-col">
               <h5>Institucional</h5>
               <ul>
-                <li><a href="quemnos">Sobre nós</a></li>
+                <li><a href="#quem-somos">Sobre nós</a></li>
                 <li><a href="#mapa">Vendas</a></li>
                 <li><a href="#">Carreiras</a></li>
                 <li><a href="#">Imprensa</a></li>
@@ -1106,7 +1118,7 @@ export default function Page() {
               <ul>
                 <li><a href="tel:+5567981156454">(67) 98115-6454</a></li>
                 <li><a href="mailto:contato@reobote.com.br">contato@reoboteconsorcios.com.br</a></li>
-                <li><a href="#">Ajuda e FAQ</a></li>
+                <li><a href="#faq">Ajuda e FAQ</a></li>
               </ul>
             </div>
           </div>
