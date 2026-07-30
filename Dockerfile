@@ -20,4 +20,4 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
-CMD ["node","node_modules/next/dist/bin/next","start","-p","3000","-H","0.0.0.0"]
+CMD ["sh","-c","node node_modules/next/dist/bin/next start -p ${PORT:-3000} -H 0.0.0.0"]

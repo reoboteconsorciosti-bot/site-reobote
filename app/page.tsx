@@ -563,10 +563,7 @@ export default function Page() {
             {/* COLUNA DA ESQUERDA: Textos e Chamadas */}
             <div className="max-w-2xl lg:max-w-3xl space-y-6 text-left">
               {/* Tag Superior */}
-              <div className="inline-flex items-center gap-2 bg-blue-500/10 backdrop-blur-md border border-blue-500/20 px-3.5 py-1.5 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-                <span className="text-xs font-bold tracking-wide text-blue-300">Consultoria especializada em consórcios</span>
-              </div>
+
 
               {/* Título de Impacto */}
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1]">
