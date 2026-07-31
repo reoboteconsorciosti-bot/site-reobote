@@ -98,7 +98,7 @@ async function encaminharParaWebhookExterno(payload: SimuladorPayload, mensagem:
         method: 'GET',
         headers: {
           ...(process.env.WHATSAPP_WEBHOOK_SECRET
-            ? { 'x-webhook-secret': process.env.WHATSAPP_WEBHOOK_SECRET }
+            ? { 'x-webhook-secret': process.env.WHATSAPP_WEBHOOK_URL }
             : {}),
         },
         cache: 'no-store',
@@ -111,7 +111,7 @@ async function encaminharParaWebhookExterno(payload: SimuladorPayload, mensagem:
         headers: {
           'Content-Type': 'application/json',
           ...(process.env.WHATSAPP_WEBHOOK_SECRET
-            ? { 'x-webhook-secret': process.env.WHATSAPP_WEBHOOK_SECRET }
+            ? { 'x-webhook-secret': process.env.WHATSAPP_WEBHOOK_URL }
             : {}),
         },
         body: JSON.stringify(corpoPadrao),

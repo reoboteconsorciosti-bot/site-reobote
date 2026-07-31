@@ -27,9 +27,12 @@ export const metadata: Metadata = {
     'consórcio rural',
     'Reobote Consórcios',
   ],
+  icons: {
+    icon: [{ url: '/images/favicon/favicon.svg', type: 'image/svg+xml' }],
+    shortcut: [{ url: '/images/favicon/favicon.svg', type: 'image/svg+xml' }],
+  },
   openGraph: {
     title: 'Reobote Consórcios | O consórcio inteligente para conquistar patrimônio',
-    description: 'Planejamento financeiro sólido, atendimento nacional e consultoria especializada em consórcios de imóveis, veículos, caminhões e máquinas agrícolas.',
     type: 'website',
     locale: 'pt_BR',
   },
