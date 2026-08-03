@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import Script from 'next/script'
 import { Simulator } from '@/components/site/simulator'
 import { Testimonials } from '@/components/site/testimonials'
 import { ChevronDown, Tractor, Home, Car, Truck, ArrowRight, Wheat, TrendingUp, ChevronRight, MessageCircle, ShieldCheck, Eye, Users, Award } from 'lucide-react'
@@ -473,6 +474,13 @@ export default function Page() {
 
   return (
     <>
+      <Script id="ms-clarity" strategy="afterInteractive">
+        {`(function(c,l,a,r,i,t,y){
+  c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+  t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+  y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+})(window, document, "clarity", "script", "xunxpogvvq");`}
+      </Script>
       <SitePreloader />
       <header id="siteHeader" ref={headerRef}>
         <div className="container nav-wrap">
@@ -1122,7 +1130,7 @@ export default function Page() {
           <div className="footer-bottom">
             <span>© 2026 Reobote Consórcios. Todos os direitos reservados.</span>
             <div>
-              <a href="#">Política de Privacidade</a>
+              <a href="https://www.termsfeed.com/live/679b12e6-b61e-4330-bfb2-c164bd25b8d3">Política de Privacidade</a>
               <span style={{ margin: '0 10px' }}>•</span>
               <a href="#">Termos de Uso</a>
             </div>

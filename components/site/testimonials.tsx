@@ -15,7 +15,38 @@ export interface VideoTestimonial {
   duration: string
   thumbnail: string
   videoUrl?: string
-  activeVideo?: boolean
+}
+
+function normalizeUrl(input: string) {
+  const value = input.trim()
+  const idx = value.search(/https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i)
+  if (idx >= 0) return value.slice(idx)
+  return value
+}
+
+function getYouTubeId(input: string) {
+  const value = normalizeUrl(input)
+
+  try {
+    const url = new URL(value)
+    const host = url.hostname.replace(/^www\./, '')
+
+    if (host === 'youtu.be') {
+      const id = url.pathname.split('/').filter(Boolean)[0]
+      return id || null
+    }
+
+    if (host.endsWith('youtube.com')) {
+      if (url.pathname === '/watch') return url.searchParams.get('v')
+      if (url.pathname.startsWith('/embed/')) return url.pathname.split('/')[2] || null
+      if (url.pathname.startsWith('/shorts/')) return url.pathname.split('/')[2] || null
+    }
+  } catch {}
+
+  const match = value.match(
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{6,})/i
+  )
+  return match?.[1] || null
 }
 
 const initialTestimonials: VideoTestimonial[] = [
@@ -31,7 +62,6 @@ const initialTestimonials: VideoTestimonial[] = [
     duration: '1:10 min',
     thumbnail: '/images/clients/medicaDermato.png',
     videoUrl: '/videos/DRA. JAQUELINE ZMIJEVSK - MÉDICA DERMATOLOGISTA - Reobote Consórcios (720p, h264, youtube).mp4',
-    activeVideo: false,
   },
   {
     id: 3,
@@ -45,7 +75,6 @@ const initialTestimonials: VideoTestimonial[] = [
     duration: '2:45 min',
     thumbnail: '/images/clients/advogada.png',
     videoUrl: '/videos/DRA. GISELLE PALIERAQUI - CONTEMPLAÇÃO GARANTIDA - Reobote Consórcios (720p, h264, youtube).mp4',
-    activeVideo: false,
   },
   {
     id: 2,
@@ -59,7 +88,6 @@ const initialTestimonials: VideoTestimonial[] = [
     duration: '1:20 min',
     thumbnail: '/images/clients/consorcioPontual.png',
     videoUrl: '/videos/ANDREZA SANTANA - CONSÓRCIO PONTUAL - Reobote Consórcios (720p, h264, youtube).mp4',
-    activeVideo: false,
   },
   {
     id: 1,
@@ -73,13 +101,12 @@ const initialTestimonials: VideoTestimonial[] = [
     duration: '2:15 min',
     thumbnail: '/images/clients/produtorRural.png',
     videoUrl: '/videos/ROBSON MONTEZANO - PRODUTOR RURAL - Reobote Consórcios (720p, h264, youtube).mp4',
-    activeVideo: false,
   },
 ]
 
 export function Testimonials() {
   const trackRef = useRef<HTMLDivElement>(null)
-  const [items, setItems] = useState<VideoTestimonial[]>(initialTestimonials)
+  const [activeVideoId, setActiveVideoId] = useState<number | null>(null)
 
   const handleScroll = (direction: 'left' | 'right') => {
     if (!trackRef.current) return
@@ -103,11 +130,7 @@ export function Testimonials() {
   }
 
   const toggleVideo = (id: number) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, activeVideo: !item.activeVideo } : item
-      )
-    )
+    setActiveVideoId((prev) => (prev === id ? null : id))
   }
 
   return (
@@ -155,48 +178,58 @@ export function Testimonials() {
             ref={trackRef}
             className="flex gap-6 overflow-x-auto scroll-smooth no-scrollbar snap-x snap-mandatory py-4"
           >
-            {items.map((item) => (
+            {initialTestimonials.map((item) => {
+              const isActive = activeVideoId === item.id
+              const youTubeId = item.videoUrl ? getYouTubeId(item.videoUrl) : null
+              const videoSrc = item.videoUrl ? encodeURI(item.videoUrl) : undefined
+
+              return (
               <div
                 key={item.id}
                 className="carousel-card min-w-[300px] md:min-w-[360px] max-w-[360px] bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-[28px] p-4 flex flex-col justify-between snap-start group hover:border-blue-500/50 transition-all duration-500"
               >
                 {/* Thumbnail / Container da tag <video> */}
                 <div className="w-full h-52 bg-slate-800 rounded-2xl overflow-hidden relative mb-4 group/video">
-                  {item.videoUrl ? (
-                    <a href={item.videoUrl} target="_blank" rel="noopener noreferrer" className="block w-full h-full relative">
-                      <video
-                        src={item.videoUrl}
-                        poster={item.thumbnail}
-                        playsInline
-                        muted
-                        className="w-full h-full object-cover brightness-90 group-hover/video:scale-105 transition-transform duration-700"
+                  {isActive && item.videoUrl ? (
+                    youTubeId ? (
+                      <iframe
+                        className="w-full h-full"
+                        src={`https://www.youtube-nocookie.com/embed/${youTubeId}?autoplay=1&rel=0&modestbranding=1`}
+                        title={`Depoimento em vídeo - ${item.name}`}
+                        allow="autoplay; encrypted-media; picture-in-picture"
+                        referrerPolicy="strict-origin-when-cross-origin"
+                        allowFullScreen
                       />
-                      <div className="absolute inset-0 bg-black/20 group-hover/video:bg-black/40 transition-colors flex items-center justify-center cursor-pointer">
-                        <div className="w-14 h-14 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 transform group-hover/video:scale-110 transition-transform duration-300 relative">
-                          <span className="absolute inset-0 rounded-full bg-blue-500 animate-ping opacity-25"></span>
-                          <Play className="w-6 h-6 fill-current ml-1" />
-                        </div>
-                      </div>
-                    </a>
+                    ) : (
+                      <video
+                        src={videoSrc}
+                        poster={item.thumbnail}
+                        controls
+                        autoPlay
+                        playsInline
+                        className="w-full h-full object-cover brightness-95"
+                      />
+                    )
                   ) : (
                     <>
-                      <video
-                        src={undefined}
-                        poster={item.thumbnail}
-                        controls={item.activeVideo}
-                        playsInline
+                      <img
+                        src={item.thumbnail}
+                        alt={`Depoimento em vídeo - ${item.name}`}
                         className="w-full h-full object-cover brightness-90 group-hover/video:scale-105 transition-transform duration-700"
                       />
-                      {!item.activeVideo && (
-                        <div
+
+                      {item.videoUrl && (
+                        <button
+                          type="button"
                           onClick={() => toggleVideo(item.id)}
                           className="absolute inset-0 bg-black/20 group-hover/video:bg-black/40 transition-colors flex items-center justify-center cursor-pointer"
+                          aria-label={`Reproduzir vídeo de ${item.name}`}
                         >
                           <div className="w-14 h-14 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 transform group-hover/video:scale-110 transition-transform duration-300 relative">
                             <span className="absolute inset-0 rounded-full bg-blue-500 animate-ping opacity-25"></span>
                             <Play className="w-6 h-6 fill-current ml-1" />
                           </div>
-                        </div>
+                        </button>
                       )}
                     </>
                   )}
@@ -226,7 +259,8 @@ export function Testimonials() {
                   </div>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 
