@@ -61,7 +61,7 @@ const initialTestimonials: VideoTestimonial[] = [
     text: 'Consegui estruturar meu consultório dermatológico com equipamentos de ponta através da consultoria e do planejamento da Reobote.',
     duration: '1:10 min',
     thumbnail: '/images/clients/medicaDermato.png',
-    videoUrl: '/videos/DRA. JAQUELINE ZMIJEVSK - MÉDICA DERMATOLOGISTA - Reobote Consórcios (720p, h264, youtube).mp4',
+    videoUrl: '/api/video/jaqueline',
   },
   {
     id: 3,
@@ -74,7 +74,7 @@ const initialTestimonials: VideoTestimonial[] = [
     text: 'Ter a segurança e a garantia de contemplação planejada mudou totalmente meus investimentos e a expansão do meu consultório.',
     duration: '2:45 min',
     thumbnail: '/images/clients/advogada.png',
-    videoUrl: '/videos/DRA. GISELLE PALIERAQUI - CONTEMPLAÇÃO GARANTIDA - Reobote Consórcios (720p, h264, youtube).mp4',
+    videoUrl: '/api/video/giselle',
   },
   {
     id: 2,
@@ -87,7 +87,7 @@ const initialTestimonials: VideoTestimonial[] = [
     text: 'Minha experiência com o consórcio pontual foi incrível, todo o suporte da Reobote fez a diferença para eu tirar meus planos do papel.',
     duration: '1:20 min',
     thumbnail: '/images/clients/consorcioPontual.png',
-    videoUrl: '/videos/ANDREZA SANTANA - CONSÓRCIO PONTUAL - Reobote Consórcios (720p, h264, youtube).mp4',
+    videoUrl: '/api/video/andreza',
   },
   {
     id: 1,
@@ -100,7 +100,7 @@ const initialTestimonials: VideoTestimonial[] = [
     text: 'Consegui tirar minha colheitadeira nova sem pagar nenhuma taxa de juros. O suporte da Reobote foi essencial do início ao fim.',
     duration: '2:15 min',
     thumbnail: '/images/clients/produtorRural.png',
-    videoUrl: '/videos/ROBSON MONTEZANO - PRODUTOR RURAL - Reobote Consórcios (720p, h264, youtube).mp4',
+    videoUrl: '/api/video/robson',
   },
 ]
 
