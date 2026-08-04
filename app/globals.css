@@ -1978,7 +1978,7 @@ input[type="range"]::-moz-range-thumb {
   position: relative;
   width: 100%;
   transform-style: preserve-3d;
-  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), height 0.25s ease;
 }
 
 .card-flipped {
@@ -1989,14 +1989,13 @@ input[type="range"]::-moz-range-thumb {
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   width: 100%;
-}
-
-.card-back {
   position: absolute;
   top: 0;
   left: 0;
+}
+
+.card-back {
   transform: rotateY(180deg);
-  height: 100%;
 }
 
 /* --- RESPONSIVIDADE PARA DISPOSITIVOS MÓVEIS --- */
@@ -2171,4 +2170,3 @@ input[type="range"]::-moz-range-thumb {
     padding: 90px 0 !important;
   }
 }
-

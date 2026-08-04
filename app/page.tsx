@@ -498,32 +498,6 @@ export default function Page() {
               <a href="#areas" className="nav-link">Soluções
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M6 9l6 6 6-6" /></svg>
               </a>
-              <div className="mega-menu">
-                <a className="mega-item" href="#areas">
-                  <div className="mega-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6" /></svg></div>
-                  <div><h5>Imobiliário</h5><p>Casa, apartamento ou terreno próprio</p></div>
-                </a>
-                <a className="mega-item" href="#areas">
-                  <div className="mega-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 17h14M5 17a2 2 0 104 0M15 17a2 2 0 104 0M5 17V9l2-5h10l2 5v8" /></svg></div>
-                  <div><h5>Automóvel</h5><p>Carro novo ou seminovo</p></div>
-                </a>
-                <a className="mega-item" href="#areas">
-                  <div className="mega-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="5.5" cy="17.5" r="2.5" /><circle cx="18.5" cy="17.5" r="2.5" /><path d="M15 6h4l3 5v6.5h-2M2 17.5V9h9v8.5M9 6h6v6H9" /></svg></div>
-                  <div><h5>Moto</h5><p>Sua próxima moto sem juros</p></div>
-                </a>
-                <a className="mega-item" href="#areas">
-                  <div className="mega-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 17h9V6H4l-3 5v6zM10 17h9v-4l-3-4h-6M6 21a2 2 0 100-4 2 2 0 000 4zM17 21a2 2 0 100-4 2 2 0 000 4z" /></svg></div>
-                  <div><h5>Caminhão</h5><p>Expanda sua frota com planejamento</p></div>
-                </a>
-                <a className="mega-item" href="#areas">
-                  <div className="mega-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="7" cy="17" r="3" /><path d="M10 17h8l3-6h-6l-2-4H7l-3 6v2" /></svg></div>
-                  <div><h5>Máq. Agrícolas</h5><p>Tratores e implementos rurais</p></div>
-                </a>
-                <a className="mega-item" href="#areas">
-                  <div className="mega-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-1.5z" /></svg></div>
-                  <div><h5>Serviços</h5><p>Viagens, cirurgias e eventos</p></div>
-                </a>
-              </div>
             </div>
             <a href="#mapa" className="nav-link">Vendas</a>
             <a href="#depoimentos" className="nav-link">Depoimentos</a>

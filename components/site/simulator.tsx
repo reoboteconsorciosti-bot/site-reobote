@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   Home,
   Car,
@@ -66,6 +66,12 @@ const segments = [
 
 type SegmentId = (typeof segments)[number]['id']
 type SimStatus = 'idle' | 'loading' | 'success' | 'error'
+type PerguntaExtraTipo = 'motivacao' | 'prazo'
+type PrazoContratacao =
+  | 'compra imediata'
+  | 'curto prazo (até 30 dias)'
+  | 'médio prazo (até 3 meses)'
+  | 'apenas pesquisando por enquanto'
 
 interface SimuladorPayload {
   tipoConsórcio: string
@@ -73,6 +79,9 @@ interface SimuladorPayload {
   valorDesejado: number
   nome: string
   telefone: string
+  perguntaExtraTipo: PerguntaExtraTipo
+  motivoInteresse?: string
+  prazoContratacao?: PrazoContratacao
 }
 
 interface WebhookResposta {
@@ -88,10 +97,22 @@ export function Simulator() {
   const [value, setValue] = useState<number>(300000)
 
   const [isFlipped, setIsFlipped] = useState(false)
+  const [perguntaExtraTipo, setPerguntaExtraTipo] = useState<PerguntaExtraTipo>('motivacao')
+
+  const frontRef = useRef<HTMLDivElement | null>(null)
+  const backRef = useRef<HTMLDivElement | null>(null)
+  const [cardHeight, setCardHeight] = useState<number | null>(null)
 
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [errors, setErrors] = useState<{ name?: boolean; phone?: boolean }>({})
+  const [motivoInteresse, setMotivoInteresse] = useState('')
+  const [prazoContratacao, setPrazoContratacao] = useState<PrazoContratacao | ''>('')
+  const [errors, setErrors] = useState<{
+    name?: boolean
+    phone?: boolean
+    motivoInteresse?: boolean
+    prazoContratacao?: boolean
+  }>({})
 
   const [submitStatus, setSubmitStatus] = useState<SimStatus>('idle')
   const [statusMessage, setStatusMessage] = useState<string>('')
@@ -104,6 +125,31 @@ export function Simulator() {
   useEffect(() => {
     setValue(config.default)
   }, [segmentId, simMode, config.default])
+
+  useLayoutEffect(() => {
+    const frontEl = frontRef.current
+    const backEl = backRef.current
+    if (!frontEl || !backEl) return
+
+    const measure = () => {
+      const el = isFlipped ? backEl : frontEl
+      const next = Math.ceil(el.getBoundingClientRect().height)
+      if (!next) return
+      setCardHeight(prev => (prev === next ? prev : next))
+    }
+
+    measure()
+
+    const ro = new ResizeObserver(measure)
+    ro.observe(frontEl)
+    ro.observe(backEl)
+    window.addEventListener('resize', measure)
+
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [isFlipped])
 
   const formatBRL = (v: number) =>
     v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
@@ -124,9 +170,15 @@ export function Simulator() {
   }
 
   const validateForm = () => {
-    const newErrors: { name?: boolean; phone?: boolean } = {}
+    const newErrors: { name?: boolean; phone?: boolean; motivoInteresse?: boolean; prazoContratacao?: boolean } =
+      {}
     if (!name.trim()) newErrors.name = true
     if (phone.length < 14) newErrors.phone = true
+    if (perguntaExtraTipo === 'motivacao') {
+      if (!motivoInteresse.trim()) newErrors.motivoInteresse = true
+    } else {
+      if (!prazoContratacao) newErrors.prazoContratacao = true
+    }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -138,6 +190,9 @@ export function Simulator() {
       valorDesejado: value,
       nome: name.trim(),
       telefone: phone,
+      perguntaExtraTipo,
+      motivoInteresse: perguntaExtraTipo === 'motivacao' ? motivoInteresse.trim() : undefined,
+      prazoContratacao: perguntaExtraTipo === 'prazo' ? (prazoContratacao as PrazoContratacao) : undefined,
     }
   }
 
@@ -182,16 +237,25 @@ export function Simulator() {
     setLinkWhatsappGerado('')
     setName('')
     setPhone('')
+    setMotivoInteresse('')
+    setPrazoContratacao('')
+    setPerguntaExtraTipo('motivacao')
     setErrors({})
     setIsFlipped(false)
   }
 
   return (
     <div className="perspective-container">
-      <div className={`card-flipper ${isFlipped ? 'card-flipped' : ''}`}>
+      <div
+        className={`card-flipper ${isFlipped ? 'card-flipped' : ''}`}
+        style={cardHeight ? { height: cardHeight } : undefined}
+      >
 
         {/* LADO A: Formulário de Simulação */}
-        <div className="card-front bg-white rounded-[32px] p-8 text-[#313335] shadow-[0_20px_50px_rgba(0,156,222,0.06)] border border-slate-100/50 flex flex-col gap-7">
+        <div
+          ref={frontRef}
+          className="card-front bg-white rounded-[32px] p-8 text-[#313335] shadow-[0_20px_50px_rgba(0,156,222,0.06)] border border-slate-100/50 flex flex-col gap-7"
+        >
 
           {/* 1. Tipo de Consórcio */}
           <div>
@@ -300,7 +364,13 @@ export function Simulator() {
           <div className="pt-1.5">
             <button
               type="button"
-              onClick={() => setIsFlipped(true)}
+              onClick={() => {
+                setMotivoInteresse('')
+                setPrazoContratacao('')
+                setErrors({})
+                setPerguntaExtraTipo(Math.random() < 0.5 ? 'motivacao' : 'prazo')
+                setIsFlipped(true)
+              }}
               className="w-full bg-[#009CDE] hover:bg-[#008cc7] text-white font-bold text-sm py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 shadow-md shadow-[#009CDE]/10 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
             >
               Continuar simulação
@@ -311,7 +381,10 @@ export function Simulator() {
         </div>
 
         {/* LADO B: Coleta de Dados Pessoais + Estados de Feedback */}
-        <div className="card-back bg-white rounded-[32px] p-8 text-[#313335] shadow-[0_20px_50px_rgba(0,156,222,0.06)] border border-slate-100/50 flex flex-col justify-between h-full">
+        <div
+          ref={backRef}
+          className="card-back bg-white rounded-[32px] p-8 text-[#313335] shadow-[0_20px_50px_rgba(0,156,222,0.06)] border border-slate-100/50 flex flex-col justify-between"
+        >
 
           {submitStatus === 'idle' || submitStatus === 'loading' ? (
             <>
@@ -389,6 +462,92 @@ export function Simulator() {
                     <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">deve preencher os campos primeiro</span>
                   )}
                 </div>
+
+                {perguntaExtraTipo === 'motivacao' ? (
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                      <span>O que motivou seu interesse pelo consórcio?</span>
+                    </label>
+                    <textarea
+                      placeholder="Descreva aqui..."
+                      value={motivoInteresse}
+                      disabled={submitStatus === 'loading'}
+                      onChange={(e) => {
+                        setMotivoInteresse(e.target.value)
+                        if (errors.motivoInteresse) {
+                          setErrors(prev => ({ ...prev, motivoInteresse: false }))
+                        }
+                      }}
+                      className={cn(
+                        "w-full bg-slate-50 border focus:bg-white rounded-2xl py-3.5 px-4 text-sm outline-none transition-all disabled:opacity-70 disabled:cursor-not-allowed min-h-[120px] resize-none",
+                        errors.motivoInteresse
+                          ? "border-red-500 focus:border-red-500"
+                          : "border-slate-100 focus:border-[#009CDE]"
+                      )}
+                      required
+                    />
+                    {errors.motivoInteresse && (
+                      <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">deve preencher os campos primeiro</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                      <span>Para quando você pretende contratar o consórcio?</span>
+                    </label>
+                    <div className="grid grid-cols-1 gap-3">
+                      {(
+                        [
+                          'compra imediata',
+                          'curto prazo (até 30 dias)',
+                          'médio prazo (até 3 meses)',
+                          'apenas pesquisando por enquanto',
+                        ] as const
+                      ).map((opcao) => {
+                        const isActive = prazoContratacao === opcao
+                        return (
+                          <button
+                            key={opcao}
+                            type="button"
+                            disabled={submitStatus === 'loading'}
+                            onClick={() => {
+                              setPrazoContratacao(opcao)
+                              if (errors.prazoContratacao) {
+                                setErrors(prev => ({ ...prev, prazoContratacao: false }))
+                              }
+                            }}
+                            className={cn(
+                              "w-full bg-white border rounded-2xl px-4 py-4 flex items-center justify-between text-left transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer",
+                              isActive
+                                ? "border-[#009CDE] shadow-sm shadow-[#009CDE]/10"
+                                : "border-slate-100 hover:border-slate-200"
+                            )}
+                          >
+                            <span className="text-sm font-semibold text-[#313335] leading-snug">
+                              {opcao}
+                            </span>
+                            <span
+                              className={cn(
+                                "w-5 h-5 rounded-full border flex items-center justify-center shrink-0",
+                                isActive ? "border-[#009CDE]" : "border-slate-300"
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "w-2.5 h-2.5 rounded-full",
+                                  isActive ? "bg-[#009CDE]" : "bg-transparent"
+                                )}
+                              />
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {errors.prazoContratacao && (
+                      <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">deve selecionar uma opção</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Botão de Envio para Webhook */}
@@ -465,6 +624,21 @@ export function Simulator() {
                           <dt className="text-slate-500">Cliente</dt>
                           <dd className="font-semibold text-[#313335]">{lastPayload.nome}</dd>
                         </div>
+                        {lastPayload.perguntaExtraTipo === 'motivacao' ? (
+                          <div className="flex justify-between gap-4">
+                            <dt className="text-slate-500 shrink-0">Motivação</dt>
+                            <dd className="font-semibold text-[#313335] text-right line-clamp-2">
+                              {lastPayload.motivoInteresse}
+                            </dd>
+                          </div>
+                        ) : (
+                          <div className="flex justify-between gap-4">
+                            <dt className="text-slate-500 shrink-0">Prazo</dt>
+                            <dd className="font-semibold text-[#313335] text-right line-clamp-2">
+                              {lastPayload.prazoContratacao}
+                            </dd>
+                          </div>
+                        )}
                       </dl>
                     </div>
                   )}

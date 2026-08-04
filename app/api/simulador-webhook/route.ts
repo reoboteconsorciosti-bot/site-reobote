@@ -10,6 +10,13 @@ export interface SimuladorPayload {
   valorDesejado: number
   nome: string
   telefone: string
+  perguntaExtraTipo: 'motivacao' | 'prazo'
+  motivoInteresse?: string
+  prazoContratacao?:
+    | 'compra imediata'
+    | 'curto prazo (até 30 dias)'
+    | 'médio prazo (até 3 meses)'
+    | 'apenas pesquisando por enquanto'
 }
 
 function validarPayload(body: unknown): body is SimuladorPayload {
@@ -17,7 +24,14 @@ function validarPayload(body: unknown): body is SimuladorPayload {
 
   const b = body as Record<string, unknown>
 
-  const camposObrigatorios = ['tipoConsórcio', 'desejaSimular', 'valorDesejado', 'nome', 'telefone']
+  const camposObrigatorios = [
+    'tipoConsórcio',
+    'desejaSimular',
+    'valorDesejado',
+    'nome',
+    'telefone',
+    'perguntaExtraTipo',
+  ]
   for (const campo of camposObrigatorios) {
     if (!(campo in b)) return false
   }
@@ -27,6 +41,23 @@ function validarPayload(body: unknown): body is SimuladorPayload {
   if (typeof b.valorDesejado !== 'number' || isNaN(b.valorDesejado) || b.valorDesejado <= 0) return false
   if (typeof b.nome !== 'string' || b.nome.trim().length < 2) return false
   if (typeof b.telefone !== 'string' || b.telefone.replace(/\D/g, '').length < 11) return false
+  if (b.perguntaExtraTipo !== 'motivacao' && b.perguntaExtraTipo !== 'prazo') return false
+  if (b.perguntaExtraTipo === 'motivacao') {
+    if (typeof b.motivoInteresse !== 'string' || b.motivoInteresse.trim().length < 3) return false
+  } else {
+    const opcoes = [
+      'compra imediata',
+      'curto prazo (até 30 dias)',
+      'médio prazo (até 3 meses)',
+      'apenas pesquisando por enquanto',
+    ] as const
+    if (
+      typeof b.prazoContratacao !== 'string' ||
+      !opcoes.includes(b.prazoContratacao as (typeof opcoes)[number])
+    ) {
+      return false
+    }
+  }
 
   return true
 }
@@ -37,15 +68,20 @@ function formatarBRL(v: number): string {
 
 function montarMensagem(p: SimuladorPayload): string {
   const valorFormatado = formatarBRL(p.valorDesejado)
+  const linhaExtra =
+    p.perguntaExtraTipo === 'motivacao'
+      ? `• Motivo do Interesse: ${p.motivoInteresse}`
+      : `• Prazo para Contratar: ${p.prazoContratacao}`
 
   return [
-    `*NOVO LEAD - SIMULADOR REOBOTE*`,
+    `*NOVO LEAD - SITE REOBOTE*`,
     ``,
     `• Nome: ${p.nome}`,
     `• WhatsApp: ${p.telefone}`,
     `• Tipo de Consórcio: ${p.tipoConsórcio}`,
     `• Modo de Simulação: ${p.desejaSimular}`,
     `• Valor Desejado: ${valorFormatado}`,
+    linhaExtra,
     ``,
     `Origem: Simulador Online - site Reobote Consórcios`,
   ].join('\n')
@@ -88,6 +124,13 @@ async function encaminharParaWebhookExterno(payload: SimuladorPayload, mensagem:
       params.set('tipoConsorcio', payload.tipoConsórcio)
       params.set('desejaSimular', payload.desejaSimular)
       params.set('valorDesejado', String(payload.valorDesejado))
+      params.set('perguntaExtraTipo', payload.perguntaExtraTipo)
+      if (payload.perguntaExtraTipo === 'motivacao' && payload.motivoInteresse) {
+        params.set('motivoInteresse', payload.motivoInteresse)
+      }
+      if (payload.perguntaExtraTipo === 'prazo' && payload.prazoContratacao) {
+        params.set('prazoContratacao', payload.prazoContratacao)
+      }
 
       const separador = webhookUrl.includes('?') ? '&' : '?'
       const urlFinal = `${webhookUrl}${separador}${params.toString()}`
@@ -98,7 +141,7 @@ async function encaminharParaWebhookExterno(payload: SimuladorPayload, mensagem:
         method: 'GET',
         headers: {
           ...(process.env.WHATSAPP_WEBHOOK_SECRET
-            ? { 'x-webhook-secret': process.env.WHATSAPP_WEBHOOK_URL }
+            ? { 'x-webhook-secret': process.env.WHATSAPP_WEBHOOK_SECRET }
             : {}),
         },
         cache: 'no-store',
@@ -111,7 +154,7 @@ async function encaminharParaWebhookExterno(payload: SimuladorPayload, mensagem:
         headers: {
           'Content-Type': 'application/json',
           ...(process.env.WHATSAPP_WEBHOOK_SECRET
-            ? { 'x-webhook-secret': process.env.WHATSAPP_WEBHOOK_URL }
+            ? { 'x-webhook-secret': process.env.WHATSAPP_WEBHOOK_SECRET }
             : {}),
         },
         body: JSON.stringify(corpoPadrao),
@@ -163,6 +206,10 @@ export async function POST(request: Request) {
             valorDesejado: 'number (positivo)',
             nome: 'string (mín. 2 caracteres)',
             telefone: 'string (mín. 11 dígitos)',
+            perguntaExtraTipo: '"motivacao" | "prazo"',
+            motivoInteresse: 'string (mín. 3 caracteres) (quando perguntaExtraTipo="motivacao")',
+            prazoContratacao:
+              '"compra imediata" | "curto prazo (até 30 dias)" | "médio prazo (até 3 meses)" | "apenas pesquisando por enquanto" (quando perguntaExtraTipo="prazo")',
           },
         },
         { status: 400 }
