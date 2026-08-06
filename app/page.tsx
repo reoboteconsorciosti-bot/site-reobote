@@ -6,6 +6,7 @@ import { Simulator } from '@/components/site/simulator'
 import { Testimonials } from '@/components/site/testimonials'
 import { ChevronDown, Tractor, Home, Car, Truck, ArrowRight, Wheat, TrendingUp, ChevronRight, MessageCircle, ShieldCheck, Eye, Users, Award } from 'lucide-react'
 import { MobileMenu } from './reponsive'
+import * as fpixel from '@/lib/fpixel'
 
 // ─── Preloader: animação de abertura com logo SVG via GSAP ─────────────────
 function SitePreloader() {
@@ -575,7 +576,7 @@ export default function Page() {
                   Simular Consórcio
                   <ChevronRight className="w-4 h-4" />
                 </a>
-                <a href="https://wa.me/5567981156454" target="_blank" rel="noopener noreferrer" className="bg-white/5 backdrop-blur-sm hover:bg-white/10 text-white border border-white/10 font-bold text-sm px-6 py-4 rounded-xl transition-all flex items-center gap-2">
+                <a href="https://wa.me/5567981156454" target="_blank" rel="noopener noreferrer" onClick={() => fpixel.event('Lead', { content_name: 'Hero CTA WhatsApp' })} className="bg-white/5 backdrop-blur-sm hover:bg-white/10 text-white border border-white/10 font-bold text-sm px-6 py-4 rounded-xl transition-all flex items-center gap-2">
                   <MessageCircle className="w-4 h-4 text-emerald-400" />
                   Falar no WhatsApp
                 </a>
@@ -703,7 +704,7 @@ export default function Page() {
                   </div>
                 </div>
 
-                <a href="https://wa.me/5567981156454" target="_blank" rel="noopener noreferrer" className="w-full sm:w-fit px-8 py-4 bg-blue-600 hover:bg-blue-700 font-bold text-white rounded-2xl shadow-[0_10px_25px_rgba(37,99,235,0.2)] transition-all duration-200 transform hover:-translate-y-0.5 text-center">
+                <a href="https://wa.me/5567981156454" target="_blank" rel="noopener noreferrer" onClick={() => fpixel.event('Lead', { content_name: 'Mapa CTA WhatsApp' })} className="w-full sm:w-fit px-8 py-4 bg-blue-600 hover:bg-blue-700 font-bold text-white rounded-2xl shadow-[0_10px_25px_rgba(37,99,235,0.2)] transition-all duration-200 transform hover:-translate-y-0.5 text-center">
                   Falar com um especialista
                 </a>
               </div>

@@ -18,6 +18,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import * as fpixel from '@/lib/fpixel'
 
 const segments = [
   {
@@ -220,6 +221,14 @@ export function Simulator() {
 
       setSubmitStatus('success')
       setStatusMessage(dados.mensagem || 'Simulação enviada com sucesso!')
+      
+      // FB Pixel Event
+      fpixel.event('Lead', { 
+        content_name: 'Simulador Concluído',
+        value: payload.valorDesejado,
+        currency: 'BRL'
+      })
+
       if (dados.linkWhatsapp) {
         setLinkWhatsappGerado(dados.linkWhatsapp)
       }
@@ -370,6 +379,14 @@ export function Simulator() {
                 setErrors({})
                 setPerguntaExtraTipo(Math.random() < 0.5 ? 'motivacao' : 'prazo')
                 setIsFlipped(true)
+
+                // FB Pixel Event
+                fpixel.event('InitiateCheckout', { 
+                  content_name: 'Simulador Iniciado',
+                  content_category: activeSegment.label,
+                  value,
+                  currency: 'BRL'
+                })
               }}
               className="w-full bg-[#009CDE] hover:bg-[#008cc7] text-white font-bold text-sm py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 shadow-md shadow-[#009CDE]/10 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
             >

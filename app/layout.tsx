@@ -2,6 +2,8 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Inter, Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
+import { Suspense } from 'react'
+import { FacebookPixel } from '@/components/analytics/facebook-pixel'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -54,6 +56,9 @@ export default function RootLayout({
       className={`light ${inter.variable} ${jakarta.variable}`}
     >
       <body>
+        <Suspense fallback={null}>
+          <FacebookPixel />
+        </Suspense>
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
