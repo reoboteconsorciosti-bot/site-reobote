@@ -4,6 +4,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import Script from 'next/script'
 import { Simulator } from '@/components/site/simulator'
 import { Testimonials } from '@/components/site/testimonials'
+import { HeroBackgroundCarousel } from '@/components/site/hero-background-carousel'
+import { CardImageCrossfade } from '@/components/site/card-image-crossfade'
 import { ChevronDown, Tractor, Home, Car, Truck, ArrowRight, Wheat, TrendingUp, ChevronRight, MessageCircle, ShieldCheck, Eye, Users, Award } from 'lucide-react'
 import { MobileMenu } from './reponsive'
 
@@ -363,6 +365,9 @@ const unitsData = {
 export default function Page() {
   // Estados para a funcionalidade do mapa
   const [selectedState, setSelectedState] = useState<string>('')
+  // Pin do mapa tocado no mobile (onde não existe :hover) — controla a
+  // exibição do tooltip "Consórcio Ativo" por toque em vez de passar o mouse.
+  const [activePinUf, setActivePinUf] = useState<string | null>(null)
   const [selectedCity, setSelectedCity] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [tooltip, setTooltip] = useState({ show: false, x: 0, y: 0, text: '' })
@@ -494,6 +499,7 @@ export default function Page() {
             />
           </a>
           <nav className="main-nav" aria-label="Menu principal">
+            <a href="#cotas-contempladas" className="nav-link nav-link-highlight">Consultar Cotas Contempladas</a>
             <div className="nav-item">
               <a href="#areas" className="nav-link">Soluções
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M6 9l6 6 6-6" /></svg>
@@ -523,29 +529,29 @@ export default function Page() {
 
       <main id="topo">
         {/* HERO SECTION PRINCIPAL */}
-        <section className="relative min-h-screen bg-[#0d172e] text-white overflow-hidden flex flex-col justify-between pt-28 pb-12">
+        <section className="relative min-h-[600px] md:min-h-screen bg-[#0d172e] text-white overflow-hidden flex flex-col justify-between pt-28 pb-12">
 
-          {/* ELEMENTO DE FUNDO: Imagem dos Donos */}
-          <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/images/DSC_5156.jpg.jpeg"
-              alt="Fundadores Reobote"
-              className="absolute bottom-0 right-1/2 w-full max-w-[420px] translate-x-1/2 object-contain opacity-45 select-none pointer-events-none translate-y-24 sm:max-w-[560px] sm:opacity-55 sm:translate-y-32 md:right-0 md:max-w-[700px] md:translate-x-0 md:opacity-65 md:translate-y-40 lg:max-w-[850px] lg:translate-y-52 z-10 h-auto"
-            />
-          </div>
+          {/* ELEMENTO DE FUNDO: Carrossel cinematográfico de imagens da campanha */}
+          <HeroBackgroundCarousel />
+
+          {/* OVERLAY: camada independente acima do carrossel e abaixo do conteúdo.
+              Garante legibilidade do texto e unifica o tom (escuro/azulado) entre
+              fotos com iluminação/exposição diferentes entre si. */}
+          <div className="absolute inset-0 z-10 pointer-events-none bg-[#0d172e]/12" />
+          <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-r from-[#0d172e]/75 via-[#0d172e]/35 via-50% to-transparent" />
+          <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-t from-[#0d172e]/25 via-transparent to-transparent" />
 
           {/* CONTEÚDO DA PÁGINA */}
           <div className="max-w-7xl w-full mx-auto px-6 relative z-20 my-auto">
 
             {/* COLUNA DA ESQUERDA: Textos e Chamadas */}
-            <div className="max-w-2xl lg:max-w-3xl space-y-6 text-left">
+            <div className="max-w-xl lg:max-w-2xl space-y-6 text-left">
               {/* Tag Superior */}
 
 
               {/* Título de Impacto */}
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1]">
-                O consórcio inteligente para conquistar <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 font-black">patrimônio</span> com planejamento.
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] [text-shadow:0_2px_20px_rgba(0,0,0,0.55)]">
+                O consórcio inteligente para conquistar <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 font-black text-[0.92em] [text-shadow:none] drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">patrimônio</span> com planejamento.
               </h1>
 
 
@@ -710,7 +716,10 @@ export default function Page() {
 
               {/* LADO DIREITO: Container do Mapa com Pins Interativos */}
               <div className="lg:col-span-7 relative w-full aspect-[4/3] min-h-[320px] sm:min-h-[420px] max-w-[680px] mx-auto bg-slate-50/60 rounded-[2.5rem] border border-slate-100 p-3 sm:p-5 lg:p-6 flex items-center justify-center">
-                <div className="relative aspect-[353.845/367.766] w-full max-h-full flex items-center justify-center">
+                <div
+                  className="relative aspect-[353.845/367.766] w-full max-h-full flex items-center justify-center"
+                  onClick={() => setActivePinUf(null)}
+                >
 
                   {/* SVG do Mapa Oficial e Geograficamente Correto */}
                   <svg viewBox="0 0 353.845 367.766" preserveAspectRatio="xMidYMid meet" className="w-full h-full fill-slate-200 stroke-white stroke-[0.5] select-none">
@@ -745,21 +754,38 @@ export default function Page() {
                     </g>
                   </svg>
 
-                  {soldStatesData.map((state) => (
-                    <div key={state.uf} className="absolute group" style={{ top: state.top, left: state.left }}>
-                      <div className="relative flex items-center justify-center w-6 h-6 cursor-pointer">
-                        <span className="absolute inline-flex h-full w-full rounded-full bg-[#009CDE]/30 animate-ping opacity-75"></span>
-                        <div className="relative w-3.5 h-3.5 rounded-full bg-[#009CDE] border-2 border-white shadow-md flex items-center justify-center transition-transform duration-200 group-hover:scale-125">
-                          <div className="w-1 h-1 bg-white rounded-full"></div>
+                  {soldStatesData.map((state) => {
+                    const isActive = activePinUf === state.uf
+
+                    return (
+                      <div key={state.uf} className="absolute group" style={{ top: state.top, left: state.left }}>
+                        <div
+                          className="relative flex items-center justify-center w-6 h-6 cursor-pointer"
+                          onClick={(e) => {
+                            // Impede que o clique suba até o container do mapa e feche o
+                            // tooltip que acabamos de abrir (ver onClick no container).
+                            e.stopPropagation()
+                            setActivePinUf((prev) => (prev === state.uf ? null : state.uf))
+                          }}
+                        >
+                          <span className="absolute inline-flex h-full w-full rounded-full bg-[#009CDE]/30 animate-ping opacity-75"></span>
+                          <div className="relative w-3.5 h-3.5 rounded-full bg-[#009CDE] border-2 border-white shadow-md flex items-center justify-center transition-transform duration-200 group-hover:scale-125">
+                            <div className="w-1 h-1 bg-white rounded-full"></div>
+                          </div>
+                        </div>
+                        {/* Tooltip: aparece no hover (desktop) OU quando o pin é tocado
+                            (mobile, onde não existe :hover) via `isActive`. */}
+                        <div
+                          className={`absolute transition-all duration-200 bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white border border-slate-100 p-3.5 rounded-2xl shadow-xl w-52 z-30 ${
+                            isActive ? 'opacity-100' : 'opacity-0 pointer-events-none group-hover:opacity-100'
+                          }`}
+                        >
+                          <h4 className="font-extrabold text-[#0d172e] text-xs mb-0.5">{state.name}</h4>
+                          <div className="text-[10px] text-emerald-600 font-bold mb-1.5">✔ Consórcio Ativo</div>
                         </div>
                       </div>
-                      {/* Tooltip Hover */}
-                      <div className="absolute opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-200 bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white border border-slate-100 p-3.5 rounded-2xl shadow-xl w-52 z-30">
-                        <h4 className="font-extrabold text-[#0d172e] text-xs mb-0.5">{state.name}</h4>
-                        <div className="text-[10px] text-emerald-600 font-bold mb-1.5">✔ Consórcio Ativo</div>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
 
                 </div>
               </div>
@@ -838,8 +864,11 @@ export default function Page() {
 
             {/* CARD 3: AUTOMÓVEL */}
             <section className="group active:scale-[0.99] card-sticky w-full h-[450px] md:h-[520px] rounded-[32px] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] border border-slate-800/80 relative transition-all duration-500 cursor-pointer">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/consorcio/haval-h6-hev-2023.jpg" alt="Automóvel" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
+              <CardImageCrossfade
+                images={['/images/consorcio/haval-h6-hev-2023.jpg', '/images/consorcio/Yamaha-R15-Marcelo-Barros-6.webp']}
+                alt="Automóvel"
+                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105"
+              />
               <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-slate-950/95 via-slate-950/70 to-transparent"></div>
 
               <div className="absolute inset-0 p-6 md:p-10 flex flex-col justify-between z-10 max-w-xl">
@@ -917,7 +946,7 @@ export default function Page() {
             {/* Texto */}
             <div className="cotas-cta-text">
               <p className="cotas-cta-label">Oportunidade exclusiva</p>
-              <h2 className="cotas-cta-title">Veja as cotas contempladas disponíveis</h2>
+              <h2 className="cotas-cta-title">Veja nosso banco de cotas contempladas disponíveis</h2>
               <p className="cotas-cta-desc">
                 Cartas de crédito já aprovadas esperando por você — compre um bem agora sem esperar sorteio.
               </p>

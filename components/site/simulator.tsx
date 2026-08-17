@@ -24,21 +24,21 @@ const segments = [
     id: 'imoveis',
     label: 'Imóvel',
     icon: Home,
-    credito: { min: 80000, max: 5000000, step: 10000, default: 300000 },
+    credito: { min: 80000, max: 10000000, step: 10000, default: 300000 },
     parcela: { min: 200, max: 8500, step: 50, default: 2000 }
   },
   {
     id: 'veiculos',
     label: 'Automóvel',
     icon: Car,
-    credito: { min: 30000, max: 500000, step: 5000, default: 80000 },
+    credito: { min: 30000, max: 1000000, step: 5000, default: 80000 },
     parcela: { min: 300, max: 3000, step: 50, default: 900 }
   },
   {
     id: 'caminhoes',
     label: 'Caminhão',
     icon: Truck,
-    credito: { min: 100000, max: 800000, step: 10000, default: 250000 },
+    credito: { min: 100000, max: 1500000, step: 10000, default: 250000 },
     parcela: { min: 1000, max: 9000, step: 100, default: 2500 }
   },
   {
@@ -271,15 +271,13 @@ export function Simulator() {
                     key={s.id}
                     type="button"
                     onClick={() => setSegmentId(s.id)}
-                    className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border-2 transition-all duration-300 group cursor-pointer ${
-                      isActive
-                        ? 'border-[#009CDE] bg-slate-50/50 text-[#009CDE] shadow-sm shadow-[#009CDE]/10 font-bold scale-[1.02]'
-                        : 'border-slate-100 text-slate-500 bg-white hover:border-slate-200 hover:text-slate-700 active:scale-98'
-                    }`}
+                    className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border-2 transition-all duration-300 group cursor-pointer ${isActive
+                      ? 'border-[#009CDE] bg-slate-50/50 text-[#009CDE] shadow-sm shadow-[#009CDE]/10 font-bold scale-[1.02]'
+                      : 'border-slate-100 text-slate-500 bg-white hover:border-slate-200 hover:text-slate-700 active:scale-98'
+                      }`}
                   >
-                    <Icon className={`w-6 h-6 mb-1.5 transition-transform duration-300 ${
-                      isActive ? 'text-[#009CDE]' : 'text-slate-400 group-hover:scale-115'
-                    }`} />
+                    <Icon className={`w-6 h-6 mb-1.5 transition-transform duration-300 ${isActive ? 'text-[#009CDE]' : 'text-slate-400 group-hover:scale-115'
+                      }`} />
                     <span className="text-[11px] tracking-tight">{s.label}</span>
                   </button>
                 )
@@ -303,18 +301,16 @@ export function Simulator() {
               <button
                 type="button"
                 onClick={() => setSimMode('credito')}
-                className={`flex-1 text-center text-xs font-bold z-10 transition-colors duration-200 cursor-pointer ${
-                  simMode === 'credito' ? 'text-[#009CDE]' : 'text-slate-500 hover:text-slate-700'
-                }`}
+                className={`flex-1 text-center text-xs font-bold z-10 transition-colors duration-200 cursor-pointer ${simMode === 'credito' ? 'text-[#009CDE]' : 'text-slate-500 hover:text-slate-700'
+                  }`}
               >
                 Por Crédito
               </button>
               <button
                 type="button"
                 onClick={() => setSimMode('parcela')}
-                className={`flex-1 text-center text-xs font-bold z-10 transition-colors duration-200 cursor-pointer ${
-                  simMode === 'parcela' ? 'text-[#009CDE]' : 'text-slate-500 hover:text-slate-700'
-                }`}
+                className={`flex-1 text-center text-xs font-bold z-10 transition-colors duration-200 cursor-pointer ${simMode === 'parcela' ? 'text-[#009CDE]' : 'text-slate-500 hover:text-slate-700'
+                  }`}
               >
                 Por Parcela
               </button>
