@@ -404,6 +404,36 @@ export default function Page() {
     return () => window.removeEventListener('scroll', checkReveal)
   }, [])
 
+  // Revelação automática dos cards de categoria (#areas) só no celular.
+  // No desktop a informação aparece com :hover (mouse sobre o card); no
+  // celular não existe hover, então antes era preciso tocar e segurar
+  // (:active) para o texto aparecer. Aqui, ao rolar a tela, cada card
+  // "grudado" (position: sticky, ver .card-sticky) que estiver visível
+  // ganha a classe `is-active`, que os elementos do card escutam via
+  // `group-[.is-active]:...` — o mesmo fade suave do hover, só que
+  // disparado pelo scroll em vez do mouse.
+  useEffect(() => {
+    const cards = document.querySelectorAll('.card-sticky')
+    if (cards.length === 0) return
+
+    const isMobile = () => window.matchMedia('(max-width: 767px)').matches
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          entry.target.classList.toggle('is-active', isMobile() && entry.isIntersecting)
+        })
+      },
+      // rootMargin recorta a área de detecção para perto de onde o card fica
+      // "grudado" (top: 15vh), evitando que ele ative cedo demais ao entrar
+      // por baixo da tela ou continue ativo depois de já ter saído por cima.
+      { threshold: 0.5, rootMargin: '-15% 0px -35% 0px' }
+    )
+
+    cards.forEach((card) => observer.observe(card))
+    return () => observer.disconnect()
+  }, [])
+
 
 
   // Header scroll effect
@@ -542,7 +572,7 @@ export default function Page() {
           <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-t from-[#0d172e]/25 via-transparent to-transparent" />
 
           {/* CONTEÚDO DA PÁGINA */}
-          <div className="max-w-7xl w-full mx-auto px-6 relative z-20 my-auto">
+          <div className="max-w-7xl w-full mx-auto px-6 relative z-20 mt-20 mb-auto sm:my-auto">
 
             {/* COLUNA DA ESQUERDA: Textos e Chamadas */}
             <div className="max-w-xl lg:max-w-2xl space-y-6 text-left">
@@ -550,14 +580,14 @@ export default function Page() {
 
 
               {/* Título de Impacto */}
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] [text-shadow:0_2px_20px_rgba(0,0,0,0.55)]">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] [text-shadow:0_2px_20px_rgba(0,0,0,0.55)]">
                 O consórcio inteligente para conquistar <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 font-black text-[0.92em] [text-shadow:none] drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">patrimônio</span> com planejamento.
               </h1>
 
 
 
-              {/* Tags de Categorias Rápidas */}
-              <div className="flex flex-wrap gap-2.5 pt-2">
+              {/* Tags de Categorias Rápidas — ocultas no celular para reduzir a altura do Hero */}
+              <div className="hidden sm:flex flex-wrap gap-2.5 pt-2">
                 <span className="bg-white/5 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 text-slate-200">
                   <Home className="w-3.5 h-3.5 text-blue-400" /> Imóveis
                 </span>
@@ -587,8 +617,8 @@ export default function Page() {
                 </a>
               </div>
 
-              {/* Prova Social Inferior */}
-              <div className="flex items-center gap-3 pt-6 border-t border-white/5 max-w-sm">
+              {/* Prova Social Inferior — oculta no celular para reduzir a altura do Hero */}
+              <div className="hidden sm:flex items-center gap-3 pt-6 border-t border-white/5 max-w-sm">
                 <div className="flex -space-x-2">
                   <div className="w-8 h-8 rounded-full bg-blue-500 border-2 border-[#0d172e] flex items-center justify-center text-[10px] font-bold">JZ</div>
                   <div className="w-8 h-8 rounded-full bg-slate-600 border-2 border-[#0d172e] flex items-center justify-center text-[10px] font-bold">GP</div>
@@ -811,7 +841,7 @@ export default function Page() {
                     Agronegócio
                   </span>
 
-                  <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 transition-all duration-500 ease-out">
+                  <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-3xl md:text-4xl font-black tracking-tight text-white">Máquinas Agrícolas</h3>
                       <Tractor className="w-7 h-7 text-amber-500" />
@@ -822,7 +852,7 @@ export default function Page() {
                   </div>
                 </div>
 
-                <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 transition-all duration-500 ease-out delay-75">
+                <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out delay-75">
                   <a href="#simulador" className="inline-flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors group/btn">
                     Simular Crédito Agro
                     <ArrowRight className="w-4 h-4 transform group-hover/btn:translate-x-1 transition-transform" />
@@ -842,7 +872,7 @@ export default function Page() {
                   <span className="inline-block bg-blue-600/90 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-md mb-4">
                     Patrimônio
                   </span>
-                  <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 transition-all duration-500 ease-out">
+                  <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-3xl md:text-4xl font-black tracking-tight text-white">Consórcio Imobiliário</h3>
                       <Home className="w-7 h-7 text-blue-400" />
@@ -853,7 +883,7 @@ export default function Page() {
                   </div>
                 </div>
 
-                <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 transition-all duration-500 ease-out delay-75">
+                <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out delay-75">
                   <a href="#simulador" className="inline-flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors group/btn">
                     Simular Crédito Imobiliário
                     <ArrowRight className="w-4 h-4 transform group-hover/btn:translate-x-1 transition-transform" />
@@ -876,7 +906,7 @@ export default function Page() {
                   <span className="inline-block bg-indigo-600/90 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-md mb-4">
                     Conquista
                   </span>
-                  <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 transition-all duration-500 ease-out">
+                  <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-3xl md:text-4xl font-black tracking-tight text-white">Consórcio Automóvel</h3>
                       <Car className="w-7 h-7 text-indigo-400" />
@@ -887,7 +917,7 @@ export default function Page() {
                   </div>
                 </div>
 
-                <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 transition-all duration-500 ease-out delay-75">
+                <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out delay-75">
                   <a href="#simulador" className="inline-flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors group/btn">
                     Simular Crédito Auto
                     <ArrowRight className="w-4 h-4 transform group-hover/btn:translate-x-1 transition-transform" />
@@ -907,7 +937,7 @@ export default function Page() {
                   <span className="inline-block bg-amber-600/90 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-md mb-4">
                     Logística
                   </span>
-                  <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 transition-all duration-500 ease-out">
+                  <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-3xl md:text-4xl font-black tracking-tight text-white">Consórcio Caminhão</h3>
                       <Truck className="w-7 h-7 text-amber-400" />
@@ -918,7 +948,7 @@ export default function Page() {
                   </div>
                 </div>
 
-                <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 transition-all duration-500 ease-out delay-75">
+                <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out delay-75">
                   <a href="#simulador" className="inline-flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors group/btn">
                     Simular Crédito Pesados
                     <ArrowRight className="w-4 h-4 transform group-hover/btn:translate-x-1 transition-transform" />
