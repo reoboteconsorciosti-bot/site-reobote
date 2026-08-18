@@ -72,6 +72,7 @@ type PrazoContratacao =
   | 'curto prazo (até 30 dias)'
   | 'médio prazo (até 3 meses)'
   | 'apenas pesquisando por enquanto'
+type AgendamentoOpcao = 'hoje' | 'amanha' | 'outro'
 
 interface SimuladorPayload {
   tipoConsórcio: string
@@ -82,7 +83,35 @@ interface SimuladorPayload {
   perguntaExtraTipo: PerguntaExtraTipo
   motivoInteresse?: string
   prazoContratacao?: PrazoContratacao
+  agendamentoOpcao: AgendamentoOpcao
+  agendamentoHorario?: string
+  agendamentoDisponibilidade?: string
+  // Resumo pronto em texto do que o lead escolheu na tela de agendamento,
+  // já formatado para entrar direto na mensagem enviada ao webhook/WhatsApp.
+  reuniaoLead: string
 }
+
+// Nomes em pt-BR usados para montar a data por extenso a partir de
+// new Date().getMonth() (0-11) e new Date().getDay() (0-6), como pedido.
+const NOMES_MES = [
+  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+]
+const NOMES_DIA_SEMANA = [
+  'domingo', 'segunda-feira', 'terça-feira', 'quarta-feira',
+  'quinta-feira', 'sexta-feira', 'sábado',
+]
+
+function formatarDataExtenso(data: Date) {
+  const diaSemana = NOMES_DIA_SEMANA[data.getDay()]
+  const dia = data.getDate()
+  const mes = NOMES_MES[data.getMonth()]
+  return `${diaSemana}, ${dia} de ${mes}`
+}
+
+// Horários provisórios só para termos algo clicável na UI — a lógica real de
+// disponibilidade (integração com agenda) será definida depois.
+const HORARIOS_PLACEHOLDER = ['09:00', '10:30', '13:00', '14:30', '16:00']
 
 interface WebhookResposta {
   sucesso: boolean
@@ -103,6 +132,13 @@ export function Simulator() {
   const backRef = useRef<HTMLDivElement | null>(null)
   const [cardHeight, setCardHeight] = useState<number | null>(null)
 
+  // Segundo flip, aninhado dentro do verso do card: dados pessoais (frente)
+  // ⇄ agendamento (verso), reaproveitando o mesmo mecanismo de flip 3D.
+  const [step2Flipped, setStep2Flipped] = useState(false)
+  const innerFrontRef = useRef<HTMLDivElement | null>(null)
+  const innerBackRef = useRef<HTMLDivElement | null>(null)
+  const [innerCardHeight, setInnerCardHeight] = useState<number | null>(null)
+
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [motivoInteresse, setMotivoInteresse] = useState('')
@@ -112,6 +148,15 @@ export function Simulator() {
     phone?: boolean
     motivoInteresse?: boolean
     prazoContratacao?: boolean
+  }>({})
+
+  const [agendamentoOpcao, setAgendamentoOpcao] = useState<AgendamentoOpcao | ''>('')
+  const [agendamentoHorario, setAgendamentoHorario] = useState('')
+  const [agendamentoDisponibilidade, setAgendamentoDisponibilidade] = useState('')
+  const [agendamentoErrors, setAgendamentoErrors] = useState<{
+    opcao?: boolean
+    horario?: boolean
+    disponibilidade?: boolean
   }>({})
 
   const [submitStatus, setSubmitStatus] = useState<SimStatus>('idle')
@@ -151,6 +196,33 @@ export function Simulator() {
     }
   }, [isFlipped])
 
+  // Mesma lógica de medição acima, só que para o flip interno (dados
+  // pessoais ⇄ agendamento) que vive dentro do verso do card externo.
+  useLayoutEffect(() => {
+    const frontEl = innerFrontRef.current
+    const backEl = innerBackRef.current
+    if (!frontEl || !backEl) return
+
+    const measure = () => {
+      const el = step2Flipped ? backEl : frontEl
+      const next = Math.ceil(el.getBoundingClientRect().height)
+      if (!next) return
+      setInnerCardHeight(prev => (prev === next ? prev : next))
+    }
+
+    measure()
+
+    const ro = new ResizeObserver(measure)
+    ro.observe(frontEl)
+    ro.observe(backEl)
+    window.addEventListener('resize', measure)
+
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [step2Flipped])
+
   const formatBRL = (v: number) =>
     v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
 
@@ -183,6 +255,42 @@ export function Simulator() {
     return Object.keys(newErrors).length === 0
   }
 
+  // Ao confirmar os dados pessoais (antigo gatilho do webhook), agora só
+  // avança para o próximo verso do card — o agendamento.
+  const avancarParaAgendamento = () => {
+    if (!validateForm()) return
+    setAgendamentoErrors({})
+    setStep2Flipped(true)
+  }
+
+  const validateAgendamento = () => {
+    const newErrors: { opcao?: boolean; horario?: boolean; disponibilidade?: boolean } = {}
+    if (!agendamentoOpcao) {
+      newErrors.opcao = true
+    } else if (agendamentoOpcao === 'hoje' || agendamentoOpcao === 'amanha') {
+      if (!agendamentoHorario) newErrors.horario = true
+    } else {
+      if (!agendamentoDisponibilidade.trim()) newErrors.disponibilidade = true
+    }
+    setAgendamentoErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  // Resumo pronto em texto do que foi escolhido na tela de agendamento —
+  // vira a variável `reuniaoLead` do payload, já pronta para a mensagem.
+  const montarReuniaoLead = () => {
+    if (agendamentoOpcao === 'hoje') {
+      return `Hoje, ${formatarDataExtenso(new Date())} às ${agendamentoHorario}`
+    }
+    if (agendamentoOpcao === 'amanha') {
+      return `Amanhã, ${formatarDataExtenso(new Date(Date.now() + 24 * 60 * 60 * 1000))} às ${agendamentoHorario}`
+    }
+    if (agendamentoOpcao === 'outro') {
+      return `Disponibilidade informada pelo lead: ${agendamentoDisponibilidade.trim()}`
+    }
+    return ''
+  }
+
   const construirPayload = (): SimuladorPayload => {
     return {
       tipoConsórcio: activeSegment.label,
@@ -193,11 +301,19 @@ export function Simulator() {
       perguntaExtraTipo,
       motivoInteresse: perguntaExtraTipo === 'motivacao' ? motivoInteresse.trim() : undefined,
       prazoContratacao: perguntaExtraTipo === 'prazo' ? (prazoContratacao as PrazoContratacao) : undefined,
+      agendamentoOpcao: agendamentoOpcao as AgendamentoOpcao,
+      agendamentoHorario:
+        agendamentoOpcao === 'hoje' || agendamentoOpcao === 'amanha' ? agendamentoHorario : undefined,
+      agendamentoDisponibilidade:
+        agendamentoOpcao === 'outro' ? agendamentoDisponibilidade.trim() : undefined,
+      reuniaoLead: montarReuniaoLead(),
     }
   }
 
+  // Gatilho real do webhook agora: só dispara depois que o agendamento
+  // (último verso do card) também estiver validado.
   const enviarSimulacao = async () => {
-    if (!validateForm()) return
+    if (!validateAgendamento()) return
 
     const payload = construirPayload()
     setLastPayload(payload)
@@ -241,6 +357,11 @@ export function Simulator() {
     setPrazoContratacao('')
     setPerguntaExtraTipo('motivacao')
     setErrors({})
+    setAgendamentoOpcao('')
+    setAgendamentoHorario('')
+    setAgendamentoDisponibilidade('')
+    setAgendamentoErrors({})
+    setStep2Flipped(false)
     setIsFlipped(false)
   }
 
@@ -383,7 +504,14 @@ export function Simulator() {
         >
 
           {submitStatus === 'idle' || submitStatus === 'loading' ? (
-            <>
+            <div className="perspective-container" style={{ maxWidth: 'none' }}>
+              <div
+                className={`card-flipper ${step2Flipped ? 'card-flipped' : ''}`}
+                style={innerCardHeight ? { height: innerCardHeight } : undefined}
+              >
+
+              {/* VERSO B.1: Coleta de Dados Pessoais */}
+              <div ref={innerFrontRef} className="card-front flex flex-col justify-between gap-6">
               <div className="flex flex-col gap-6">
                 {/* Header */}
                 <div>
@@ -546,28 +674,210 @@ export function Simulator() {
                 )}
               </div>
 
-              {/* Botão de Envio para Webhook */}
+              {/* Botão que agora só avança para o agendamento — o gatilho do
+                  webhook foi movido para o botão "Ver simulação completa"
+                  no próximo verso do card. */}
               <div className="pt-6 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={enviarSimulacao}
-                  disabled={submitStatus === 'loading'}
-                  className="w-full bg-[#009CDE] hover:bg-[#008cc7] disabled:bg-[#008cc7]/80 text-white font-bold text-sm py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 shadow-md shadow-[#009CDE]/10 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer disabled:translate-y-0 disabled:cursor-not-allowed"
+                  onClick={avancarParaAgendamento}
+                  className="w-full bg-[#009CDE] hover:bg-[#008cc7] text-white font-bold text-sm py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 shadow-md shadow-[#009CDE]/10 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
                 >
-                  {submitStatus === 'loading' ? (
-                    <>
-                      <Loader2 className="w-4.5 h-4.5 animate-spin" />
-                      Enviando simulação...
-                    </>
-                  ) : (
-                    <>
-                      Ver simulação completa
-                      <ArrowRight className="w-4.5 h-4.5" />
-                    </>
-                  )}
+                  Continuar simulação
+                  <ArrowRight className="w-4.5 h-4.5" />
                 </button>
               </div>
-            </>
+              </div>
+
+              {/* VERSO B.2: Agendamento — gatilho real do webhook */}
+              <div ref={innerBackRef} className="card-back flex flex-col justify-between gap-6">
+                <div className="flex flex-col gap-6">
+                  {/* Header */}
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setStep2Flipped(false)}
+                      disabled={submitStatus === 'loading'}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-[#009CDE] transition-colors mb-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      Voltar e revisar meus dados
+                    </button>
+                    <h3 className="text-xl font-extrabold text-[#313335] tracking-tight">Vamos agendar sua conversa?</h3>
+                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                      Hoje é {formatarDataExtenso(new Date())}. Escolha a melhor forma de conversarmos sobre sua simulação.
+                    </p>
+                  </div>
+
+                  {/* 3 opções de agendamento */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                      Quando podemos falar com você?
+                    </label>
+                    <div className="grid grid-cols-1 gap-3">
+                      {(
+                        [
+                          {
+                            id: 'hoje' as const,
+                            titulo: 'Agendar reunião para hoje',
+                            subtitulo: formatarDataExtenso(new Date()),
+                          },
+                          {
+                            id: 'amanha' as const,
+                            titulo: 'Agendar para amanhã',
+                            subtitulo: formatarDataExtenso(new Date(Date.now() + 24 * 60 * 60 * 1000)),
+                          },
+                          {
+                            id: 'outro' as const,
+                            titulo: 'Prefiro informar minha disponibilidade',
+                            subtitulo: 'Você escreve o melhor dia e horário',
+                          },
+                        ]
+                      ).map((opcao) => {
+                        const isActive = agendamentoOpcao === opcao.id
+                        return (
+                          <button
+                            key={opcao.id}
+                            type="button"
+                            disabled={submitStatus === 'loading'}
+                            onClick={() => {
+                              setAgendamentoOpcao(opcao.id)
+                              setAgendamentoErrors({})
+                              if (opcao.id !== agendamentoOpcao) {
+                                setAgendamentoHorario('')
+                              }
+                            }}
+                            className={cn(
+                              "w-full bg-white border rounded-2xl px-4 py-4 flex items-center justify-between text-left transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer",
+                              isActive
+                                ? "border-[#009CDE] shadow-sm shadow-[#009CDE]/10"
+                                : "border-slate-100 hover:border-slate-200"
+                            )}
+                          >
+                            <span className="flex flex-col">
+                              <span className="text-sm font-semibold text-[#313335] leading-snug">
+                                {opcao.titulo}
+                              </span>
+                              <span className="text-[11px] text-slate-400 mt-0.5 capitalize">
+                                {opcao.subtitulo}
+                              </span>
+                            </span>
+                            <span
+                              className={cn(
+                                "w-5 h-5 rounded-full border flex items-center justify-center shrink-0",
+                                isActive ? "border-[#009CDE]" : "border-slate-300"
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "w-2.5 h-2.5 rounded-full",
+                                  isActive ? "bg-[#009CDE]" : "bg-transparent"
+                                )}
+                              />
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {agendamentoErrors.opcao && (
+                      <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">deve selecionar uma opção</span>
+                    )}
+                  </div>
+
+                  {/* Horários — provisórios, lógica real de disponibilidade vem depois */}
+                  {(agendamentoOpcao === 'hoje' || agendamentoOpcao === 'amanha') && (
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                        Horários disponíveis
+                      </label>
+                      <div className="grid grid-cols-3 gap-2.5">
+                        {HORARIOS_PLACEHOLDER.map((horario) => {
+                          const isActive = agendamentoHorario === horario
+                          return (
+                            <button
+                              key={horario}
+                              type="button"
+                              disabled={submitStatus === 'loading'}
+                              onClick={() => {
+                                setAgendamentoHorario(horario)
+                                if (agendamentoErrors.horario) {
+                                  setAgendamentoErrors(prev => ({ ...prev, horario: false }))
+                                }
+                              }}
+                              className={cn(
+                                "py-3 rounded-xl border text-xs font-bold transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer",
+                                isActive
+                                  ? "border-[#009CDE] bg-slate-50/50 text-[#009CDE] shadow-sm shadow-[#009CDE]/10"
+                                  : "border-slate-100 text-slate-500 bg-white hover:border-slate-200"
+                              )}
+                            >
+                              {horario}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      {agendamentoErrors.horario && (
+                        <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">deve escolher um horário</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Disponibilidade em texto livre */}
+                  {agendamentoOpcao === 'outro' && (
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                        Quando você estará disponível?
+                      </label>
+                      <textarea
+                        placeholder="Ex: terça ou quinta à tarde, depois das 15h..."
+                        value={agendamentoDisponibilidade}
+                        disabled={submitStatus === 'loading'}
+                        onChange={(e) => {
+                          setAgendamentoDisponibilidade(e.target.value)
+                          if (agendamentoErrors.disponibilidade) {
+                            setAgendamentoErrors(prev => ({ ...prev, disponibilidade: false }))
+                          }
+                        }}
+                        className={cn(
+                          "w-full bg-slate-50 border focus:bg-white rounded-2xl py-3.5 px-4 text-sm outline-none transition-all disabled:opacity-70 disabled:cursor-not-allowed min-h-[100px] resize-none",
+                          agendamentoErrors.disponibilidade
+                            ? "border-red-500 focus:border-red-500"
+                            : "border-slate-100 focus:border-[#009CDE]"
+                        )}
+                        required
+                      />
+                      {agendamentoErrors.disponibilidade && (
+                        <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">conte pra gente quando você estará disponível</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Botão de Envio para Webhook — gatilho real da simulação */}
+                <div className="pt-6 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={enviarSimulacao}
+                    disabled={submitStatus === 'loading'}
+                    className="w-full bg-[#009CDE] hover:bg-[#008cc7] disabled:bg-[#008cc7]/80 text-white font-bold text-sm py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 shadow-md shadow-[#009CDE]/10 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer disabled:translate-y-0 disabled:cursor-not-allowed"
+                  >
+                    {submitStatus === 'loading' ? (
+                      <>
+                        <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                        Enviando simulação...
+                      </>
+                    ) : (
+                      <>
+                        Ver simulação completa
+                        <ArrowRight className="w-4.5 h-4.5" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              </div>
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center gap-5 h-full text-center py-4">
               {submitStatus === 'success' ? (

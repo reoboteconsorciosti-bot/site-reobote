@@ -17,6 +17,10 @@ export interface SimuladorPayload {
     | 'curto prazo (até 30 dias)'
     | 'médio prazo (até 3 meses)'
     | 'apenas pesquisando por enquanto'
+  agendamentoOpcao: 'hoje' | 'amanha' | 'outro'
+  agendamentoHorario?: string
+  agendamentoDisponibilidade?: string
+  reuniaoLead: string
 }
 
 function validarPayload(body: unknown): body is SimuladorPayload {
@@ -31,6 +35,8 @@ function validarPayload(body: unknown): body is SimuladorPayload {
     'nome',
     'telefone',
     'perguntaExtraTipo',
+    'agendamentoOpcao',
+    'reuniaoLead',
   ]
   for (const campo of camposObrigatorios) {
     if (!(campo in b)) return false
@@ -59,6 +65,19 @@ function validarPayload(body: unknown): body is SimuladorPayload {
     }
   }
 
+  if (b.agendamentoOpcao !== 'hoje' && b.agendamentoOpcao !== 'amanha' && b.agendamentoOpcao !== 'outro') {
+    return false
+  }
+  if (b.agendamentoOpcao === 'hoje' || b.agendamentoOpcao === 'amanha') {
+    if (typeof b.agendamentoHorario !== 'string' || b.agendamentoHorario.trim().length === 0) return false
+  } else {
+    if (typeof b.agendamentoDisponibilidade !== 'string' || b.agendamentoDisponibilidade.trim().length < 2) {
+      return false
+    }
+  }
+
+  if (typeof b.reuniaoLead !== 'string' || b.reuniaoLead.trim().length === 0) return false
+
   return true
 }
 
@@ -82,6 +101,7 @@ function montarMensagem(p: SimuladorPayload): string {
     `• Modo de Simulação: ${p.desejaSimular}`,
     `• Valor Desejado: ${valorFormatado}`,
     linhaExtra,
+    `• Reunião: ${p.reuniaoLead}`,
     ``,
     `Origem: Simulador Online - site Reobote Consórcios`,
   ].join('\n')
@@ -131,6 +151,17 @@ async function encaminharParaWebhookExterno(payload: SimuladorPayload, mensagem:
       if (payload.perguntaExtraTipo === 'prazo' && payload.prazoContratacao) {
         params.set('prazoContratacao', payload.prazoContratacao)
       }
+      params.set('agendamentoOpcao', payload.agendamentoOpcao)
+      if (
+        (payload.agendamentoOpcao === 'hoje' || payload.agendamentoOpcao === 'amanha') &&
+        payload.agendamentoHorario
+      ) {
+        params.set('agendamentoHorario', payload.agendamentoHorario)
+      }
+      if (payload.agendamentoOpcao === 'outro' && payload.agendamentoDisponibilidade) {
+        params.set('agendamentoDisponibilidade', payload.agendamentoDisponibilidade)
+      }
+      params.set('reuniaoLead', payload.reuniaoLead)
 
       const separador = webhookUrl.includes('?') ? '&' : '?'
       const urlFinal = `${webhookUrl}${separador}${params.toString()}`
@@ -210,6 +241,10 @@ export async function POST(request: Request) {
             motivoInteresse: 'string (mín. 3 caracteres) (quando perguntaExtraTipo="motivacao")',
             prazoContratacao:
               '"compra imediata" | "curto prazo (até 30 dias)" | "médio prazo (até 3 meses)" | "apenas pesquisando por enquanto" (quando perguntaExtraTipo="prazo")',
+            agendamentoOpcao: '"hoje" | "amanha" | "outro"',
+            agendamentoHorario: 'string (quando agendamentoOpcao="hoje" ou "amanha")',
+            agendamentoDisponibilidade: 'string (mín. 2 caracteres) (quando agendamentoOpcao="outro")',
+            reuniaoLead: 'string (resumo pronto do agendamento, ex.: "Hoje, terça-feira, 18 de agosto às 09:00")',
           },
         },
         { status: 400 }

@@ -279,11 +279,24 @@ export function Testimonials() {
           className="relative w-full overflow-hidden"
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
+          // No celular não existe mouseenter/mouseleave — sem isso, o loop de
+          // auto-scroll continuava sobrescrevendo track.scrollLeft a cada
+          // frame por cima do gesto de arrastar do usuário, travando o swipe.
+          // Pausa durante o toque e só retoma a esteira automática depois.
+          onTouchStart={() => setIsPaused(true)}
+          onTouchEnd={() => setIsPaused(false)}
+          onTouchCancel={() => setIsPaused(false)}
         >
           {/* Fileira dos Cards (Carrossel Container) */}
           <div
             ref={trackRef}
             className="flex gap-6 overflow-x-auto no-scrollbar py-4"
+            // touch-action: pan-x evita que o navegador fique tentando decidir
+            // entre gesto vertical (rolar a página) e horizontal (arrastar o
+            // carrossel) a cada toque — essa indecisão é o que dá a sensação
+            // de travamento no primeiro instante do swipe. -webkit-overflow-
+            // scrolling: touch liga o scroll com inércia nativa no iOS.
+            style={{ touchAction: 'pan-x', WebkitOverflowScrolling: 'touch', transform: 'translateZ(0)' }}
           >
             {/* Lista duplicada: permite o loop contínuo (ver efeito de auto-scroll acima)
                 sem que o fim da fileira original fique visível durante o wrap. */}
@@ -295,7 +308,13 @@ export function Testimonials() {
               return (
                 <div
                   key={`${item.id}-${index}`}
-                  className="carousel-card min-w-[300px] md:min-w-[360px] max-w-[360px] bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-[28px] p-4 flex flex-col justify-between group hover:border-blue-500/50 transition-all duration-500"
+                  // Sem backdrop-blur aqui: aplicado em ~18 cards (lista duplicada
+                  // para o loop) ele é caro pra compositar durante o scroll no
+                  // celular e era parte da sensação de travamento. bg mais opaco
+                  // substitui o efeito de vidro sem custo de blur em tempo real.
+                  // transition-colors (em vez de transition-all) evita observar
+                  // propriedades que não mudam, como a posição de scroll.
+                  className="carousel-card min-w-[300px] md:min-w-[360px] max-w-[360px] bg-slate-900/70 border border-white/10 rounded-[28px] p-4 flex flex-col justify-between group hover:border-blue-500/50 transition-colors duration-500"
                 >
                   {/* Thumbnail / Capa do vídeo */}
                   <div className="w-full h-52 bg-slate-800 rounded-2xl overflow-hidden relative mb-4 group/video">
