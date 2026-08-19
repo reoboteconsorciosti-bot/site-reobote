@@ -806,9 +806,8 @@ export default function Page() {
                         {/* Tooltip: aparece no hover (desktop) OU quando o pin é tocado
                             (mobile, onde não existe :hover) via `isActive`. */}
                         <div
-                          className={`absolute transition-all duration-200 bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white border border-slate-100 p-3.5 rounded-2xl shadow-xl w-52 z-30 ${
-                            isActive ? 'opacity-100' : 'opacity-0 pointer-events-none group-hover:opacity-100'
-                          }`}
+                          className={`absolute transition-all duration-200 bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white border border-slate-100 p-3.5 rounded-2xl shadow-xl w-52 z-30 ${isActive ? 'opacity-100' : 'opacity-0 pointer-events-none group-hover:opacity-100'
+                            }`}
                         >
                           <h4 className="font-extrabold text-[#0d172e] text-xs mb-0.5">{state.name}</h4>
                           <div className="text-[10px] text-emerald-600 font-bold mb-1.5">✔ Consórcio Ativo</div>

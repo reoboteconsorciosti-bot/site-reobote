@@ -109,9 +109,21 @@ function formatarDataExtenso(data: Date) {
   return `${diaSemana}, ${dia} de ${mes}`
 }
 
-// Horários provisórios só para termos algo clicável na UI — a lógica real de
-// disponibilidade (integração com agenda) será definida depois.
-const HORARIOS_PLACEHOLDER = ['09:00', '10:30', '13:00', '14:30', '16:00']
+// "YYYY-MM-DD" no fuso local do navegador — é o formato que a rota interna
+// GET /api/crm/disponibilidade?date=... espera.
+function toDateKey(data: Date) {
+  const y = data.getFullYear()
+  const m = String(data.getMonth() + 1).padStart(2, '0')
+  const d = String(data.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+interface AvailabilitySlot {
+  time: string
+  available: boolean
+}
+
+type HorariosStatus = 'idle' | 'loading' | 'error'
 
 interface WebhookResposta {
   sucesso: boolean
@@ -157,7 +169,25 @@ export function Simulator() {
     opcao?: boolean
     horario?: boolean
     disponibilidade?: boolean
+    // Horário escolhido foi reservado por outra pessoa entre a busca de
+    // disponibilidade e a tentativa de confirmar (409 do CRM) — mensagem
+    // diferente de "esqueceu de escolher", ver validateAgendamento/enviarSimulacao.
+    slotIndisponivel?: boolean
   }>({})
+
+  // Negócio real criado no CRM (POST /api/crm/deal) assim que os dados
+  // pessoais são confirmados — dealId/contactId viram obrigatórios pra
+  // reservar o horário de verdade (POST /api/crm/agendamento) lá na frente.
+  const [dealId, setDealId] = useState<string | null>(null)
+  const [contactId, setContactId] = useState<string | null>(null)
+  const [dealStatus, setDealStatus] = useState<'idle' | 'creating' | 'error'>('idle')
+  const [dealError, setDealError] = useState('')
+
+  // Grade real de horários (hoje/amanhã), buscada no back — que por sua vez
+  // consulta o CRM — assim que o lead confirma os dados pessoais, antes de
+  // ele sequer ver a tela de agendamento.
+  const [horariosStatus, setHorariosStatus] = useState<HorariosStatus>('idle')
+  const [horariosPorData, setHorariosPorData] = useState<Record<string, AvailabilitySlot[]>>({})
 
   const [submitStatus, setSubmitStatus] = useState<SimStatus>('idle')
   const [statusMessage, setStatusMessage] = useState<string>('')
@@ -166,6 +196,14 @@ export function Simulator() {
 
   const activeSegment = segments.find(s => s.id === segmentId)!
   const config = activeSegment[simMode]
+
+  // "Hoje" e "amanhã" em termos de calendário local do navegador de quem
+  // está preenchendo — é o mesmo dia que os botões "Agendar reunião para
+  // hoje"/"Agendar para amanhã" prometem mostrar.
+  const hojeKey = toDateKey(new Date())
+  const amanhaKey = toDateKey(new Date(Date.now() + 24 * 60 * 60 * 1000))
+  const dataKeySelecionada = agendamentoOpcao === 'hoje' ? hojeKey : agendamentoOpcao === 'amanha' ? amanhaKey : null
+  const slotsSelecionados = dataKeySelecionada ? horariosPorData[dataKeySelecionada] : undefined
 
   useEffect(() => {
     setValue(config.default)
@@ -255,12 +293,87 @@ export function Simulator() {
     return Object.keys(newErrors).length === 0
   }
 
-  // Ao confirmar os dados pessoais (antigo gatilho do webhook), agora só
-  // avança para o próximo verso do card — o agendamento.
-  const avancarParaAgendamento = () => {
+  // Busca a grade real de horários de hoje e de amanhã na rota interna
+  // (que por sua vez consulta o CRM) — nunca os dois dias na tela sem saber
+  // de verdade o que está livre. Chamada ao avançar pro agendamento e
+  // reaproveitada como "tentar novamente" se a busca falhar.
+  const carregarDisponibilidade = async () => {
+    setHorariosStatus('loading')
+
+    try {
+      const [respHoje, respAmanha] = await Promise.all([
+        fetch(`/api/crm/disponibilidade?date=${hojeKey}`, { cache: 'no-store' }),
+        fetch(`/api/crm/disponibilidade?date=${amanhaKey}`, { cache: 'no-store' }),
+      ])
+      const [dadosHoje, dadosAmanha] = await Promise.all([respHoje.json(), respAmanha.json()])
+
+      if (!respHoje.ok || !dadosHoje?.success || !respAmanha.ok || !dadosAmanha?.success) {
+        throw new Error('Falha ao carregar disponibilidade')
+      }
+
+      setHorariosPorData({
+        [hojeKey]: dadosHoje.data.slots as AvailabilitySlot[],
+        [amanhaKey]: dadosAmanha.data.slots as AvailabilitySlot[],
+      })
+      setHorariosStatus('idle')
+    } catch {
+      setHorariosStatus('error')
+    }
+  }
+
+  // Descrição legível do que foi simulado — vira o campo `description` do
+  // negócio criado no CRM (não existe formulário de qualificação aqui como
+  // no lp_agendamento_automatico, então isso ocupa o mesmo lugar).
+  const montarDescricaoDeal = () =>
+    [
+      `Tipo de Consórcio: ${activeSegment.label}`,
+      `Modo de Simulação: ${simMode === 'credito' ? 'Valor do Crédito' : 'Valor da Parcela'}`,
+      `Valor Desejado: ${formatBRL(value)}`,
+      perguntaExtraTipo === 'motivacao'
+        ? `Motivo do Interesse: ${motivoInteresse.trim()}`
+        : `Prazo para Contratar: ${prazoContratacao}`,
+    ].join('\n')
+
+  // Ao confirmar os dados pessoais, cria o negócio de verdade no CRM (só
+  // depois disso existe um dealId/contactId real pra reservar um horário
+  // — ver POST /api/crm/agendamento em enviarSimulacao) e então avança
+  // para o próximo verso do card — o agendamento. O GET pra saber quais
+  // horários existem de verdade dispara junto, em paralelo, em vez de
+  // esperar o lead escolher "hoje"/"amanhã" pra só então ir buscar — assim
+  // a grade real já está pronta (ou a caminho) quando a tela aparece.
+  const avancarParaAgendamento = async () => {
     if (!validateForm()) return
+
     setAgendamentoErrors({})
-    setStep2Flipped(true)
+    setDealStatus('creating')
+    setDealError('')
+
+    try {
+      const resposta = await fetch('/api/crm/deal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome: name.trim(),
+          telefone: phone,
+          descricao: montarDescricaoDeal(),
+          origem: 'Simulador Online - site Reobote Consórcios',
+        }),
+      })
+      const dados = await resposta.json().catch(() => null)
+
+      if (!resposta.ok || !dados?.success) {
+        throw new Error(dados?.error || 'Não foi possível registrar seus dados agora.')
+      }
+
+      setDealId(dados.dealId)
+      setContactId(dados.contactId)
+      setDealStatus('idle')
+      setStep2Flipped(true)
+      carregarDisponibilidade()
+    } catch (err) {
+      setDealStatus('error')
+      setDealError(err instanceof Error ? err.message : 'Erro inesperado ao registrar seus dados.')
+    }
   }
 
   const validateAgendamento = () => {
@@ -310,18 +423,79 @@ export function Simulator() {
     }
   }
 
-  // Gatilho real do webhook agora: só dispara depois que o agendamento
-  // (último verso do card) também estiver validado.
+  // Gatilho real da reserva/nota no CRM + envio do webhook — só dispara
+  // depois que o agendamento (último verso do card) também estiver
+  // validado. Ordem importa: primeiro tenta reservar de verdade no CRM
+  // (pode falhar com 409 se alguém levou o horário antes), só then segue
+  // pro aviso via WhatsApp e pro webhook original.
   const enviarSimulacao = async () => {
     if (!validateAgendamento()) return
 
-    const payload = construirPayload()
-    setLastPayload(payload)
+    if (!dealId || !contactId) {
+      setSubmitStatus('error')
+      setStatusMessage('Não foi possível identificar seu cadastro. Volte e tente novamente.')
+      return
+    }
+
     setSubmitStatus('loading')
     setStatusMessage('Enviando sua simulação...')
     setLinkWhatsappGerado('')
 
     try {
+      if (agendamentoOpcao === 'hoje' || agendamentoOpcao === 'amanha') {
+        const respAgenda = await fetch('/api/crm/agendamento', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dealId, contactId, date: dataKeySelecionada, time: agendamentoHorario }),
+        })
+
+        if (respAgenda.status === 409) {
+          // Alguém reservou esse horário entre a busca de disponibilidade e
+          // esta confirmação — nunca finge sucesso: devolve o lead pra
+          // escolha, com a grade já atualizada.
+          setSubmitStatus('idle')
+          setStatusMessage('')
+          setAgendamentoHorario('')
+          setAgendamentoErrors({ slotIndisponivel: true })
+          await carregarDisponibilidade()
+          return
+        }
+
+        const dadosAgenda = await respAgenda.json().catch(() => null)
+        if (!respAgenda.ok || !dadosAgenda?.success) {
+          throw new Error(dadosAgenda?.error || 'Não foi possível confirmar o agendamento agora.')
+        }
+      } else if (agendamentoOpcao === 'outro') {
+        const respNota = await fetch('/api/crm/nota', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dealId,
+            nota: `Disponibilidade informada pelo lead: ${agendamentoDisponibilidade.trim()}`,
+          }),
+        })
+        const dadosNota = await respNota.json().catch(() => null)
+        if (!respNota.ok || !dadosNota?.success) {
+          throw new Error(dadosNota?.error || 'Não foi possível registrar sua preferência agora.')
+        }
+      }
+
+      // Aviso via WhatsApp (workflow "agendamento-lp" no n8n) pro consultor
+      // e o supervisor — best-effort do lado do servidor (a rota interna
+      // nunca relança), então não precisa travar o fluxo do lead esperando.
+      fetch('/api/crm/notificar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          agendamentoOpcao === 'outro'
+            ? { dealId, agendado: false, preferenciaHorario: agendamentoDisponibilidade.trim() }
+            : { dealId, agendado: true, data: dataKeySelecionada, hora: agendamentoHorario }
+        ),
+      }).catch(() => {})
+
+      const payload = construirPayload()
+      setLastPayload(payload)
+
       const resposta = await fetch('/api/simulador-webhook', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -361,6 +535,12 @@ export function Simulator() {
     setAgendamentoHorario('')
     setAgendamentoDisponibilidade('')
     setAgendamentoErrors({})
+    setDealId(null)
+    setContactId(null)
+    setDealStatus('idle')
+    setDealError('')
+    setHorariosStatus('idle')
+    setHorariosPorData({})
     setStep2Flipped(false)
     setIsFlipped(false)
   }
@@ -674,18 +854,32 @@ export function Simulator() {
                 )}
               </div>
 
-              {/* Botão que agora só avança para o agendamento — o gatilho do
-                  webhook foi movido para o botão "Ver simulação completa"
-                  no próximo verso do card. */}
+              {/* Botão que agora cria o negócio de verdade no CRM e só então
+                  avança para o agendamento — o gatilho da reserva do horário
+                  em si foi movido pro botão "Ver simulação completa" no
+                  próximo verso do card. */}
               <div className="pt-6 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={avancarParaAgendamento}
-                  className="w-full bg-[#009CDE] hover:bg-[#008cc7] text-white font-bold text-sm py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 shadow-md shadow-[#009CDE]/10 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                  disabled={dealStatus === 'creating'}
+                  className="w-full bg-[#009CDE] hover:bg-[#008cc7] disabled:bg-[#008cc7]/80 text-white font-bold text-sm py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 shadow-md shadow-[#009CDE]/10 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer disabled:translate-y-0 disabled:cursor-not-allowed"
                 >
-                  Continuar simulação
-                  <ArrowRight className="w-4.5 h-4.5" />
+                  {dealStatus === 'creating' ? (
+                    <>
+                      <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                      Registrando seus dados...
+                    </>
+                  ) : (
+                    <>
+                      Continuar simulação
+                      <ArrowRight className="w-4.5 h-4.5" />
+                    </>
+                  )}
                 </button>
+                {dealStatus === 'error' && (
+                  <p className="text-red-500 text-[11px] font-semibold px-1 mt-2 text-center">{dealError}</p>
+                )}
               </div>
               </div>
 
@@ -784,39 +978,75 @@ export function Simulator() {
                     )}
                   </div>
 
-                  {/* Horários — provisórios, lógica real de disponibilidade vem depois */}
+                  {/* Horários — grade real, buscada em /api/crm/disponibilidade
+                      (rota interna que consulta o CRM) assim que o lead clicou
+                      em "Continuar simulação", antes de chegar nesta tela. */}
                   {(agendamentoOpcao === 'hoje' || agendamentoOpcao === 'amanha') && (
                     <div className="flex flex-col gap-2">
                       <label className="text-xs font-bold tracking-widest text-slate-400 uppercase">
                         Horários disponíveis
                       </label>
-                      <div className="grid grid-cols-3 gap-2.5">
-                        {HORARIOS_PLACEHOLDER.map((horario) => {
-                          const isActive = agendamentoHorario === horario
-                          return (
-                            <button
-                              key={horario}
-                              type="button"
-                              disabled={submitStatus === 'loading'}
-                              onClick={() => {
-                                setAgendamentoHorario(horario)
-                                if (agendamentoErrors.horario) {
-                                  setAgendamentoErrors(prev => ({ ...prev, horario: false }))
-                                }
-                              }}
-                              className={cn(
-                                "py-3 rounded-xl border text-xs font-bold transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer",
-                                isActive
-                                  ? "border-[#009CDE] bg-slate-50/50 text-[#009CDE] shadow-sm shadow-[#009CDE]/10"
-                                  : "border-slate-100 text-slate-500 bg-white hover:border-slate-200"
-                              )}
-                            >
-                              {horario}
-                            </button>
-                          )
-                        })}
-                      </div>
-                      {agendamentoErrors.horario && (
+
+                      {horariosStatus === 'loading' && !slotsSelecionados ? (
+                        <div className="grid grid-cols-3 gap-2.5">
+                          {[0, 1, 2, 3, 4].map((i) => (
+                            <div key={i} className="h-[42px] rounded-xl bg-slate-100 animate-pulse" />
+                          ))}
+                        </div>
+                      ) : horariosStatus === 'error' ? (
+                        <div className="flex flex-col items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                          <span className="text-xs text-red-600 font-medium">
+                            Não foi possível carregar os horários agora.
+                          </span>
+                          <button
+                            type="button"
+                            onClick={carregarDisponibilidade}
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-red-600 hover:text-red-700 cursor-pointer"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            Tentar novamente
+                          </button>
+                        </div>
+                      ) : slotsSelecionados && slotsSelecionados.every((slot) => !slot.available) ? (
+                        <span className="text-xs text-slate-500">
+                          Nenhum horário disponível {agendamentoOpcao === 'hoje' ? 'para hoje' : 'para amanhã'}. Tente a outra data ou informe sua disponibilidade.
+                        </span>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-2.5">
+                          {(slotsSelecionados ?? []).map((slot) => {
+                            const isActive = agendamentoHorario === slot.time
+                            return (
+                              <button
+                                key={slot.time}
+                                type="button"
+                                disabled={submitStatus === 'loading' || !slot.available}
+                                title={!slot.available ? 'Horário já ocupado' : undefined}
+                                onClick={() => {
+                                  setAgendamentoHorario(slot.time)
+                                  if (agendamentoErrors.horario) {
+                                    setAgendamentoErrors(prev => ({ ...prev, horario: false }))
+                                  }
+                                }}
+                                className={cn(
+                                  "py-3 rounded-xl border text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer",
+                                  isActive
+                                    ? "border-[#009CDE] bg-slate-50/50 text-[#009CDE] shadow-sm shadow-[#009CDE]/10"
+                                    : "border-slate-100 text-slate-500 bg-white hover:border-slate-200"
+                                )}
+                              >
+                                {slot.time}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {agendamentoErrors.slotIndisponivel && (
+                        <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">
+                          esse horário acabou de ser reservado por outra pessoa — escolha outro
+                        </span>
+                      )}
+                      {agendamentoErrors.horario && !agendamentoErrors.slotIndisponivel && (
                         <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">deve escolher um horário</span>
                       )}
                     </div>

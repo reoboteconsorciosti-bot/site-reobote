@@ -107,7 +107,7 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
               <a
                 href="#simulador"
                 onClick={onClose}
-                className="mb-3 block w-full rounded-2xl bg-[#0d172e] px-6 py-4 text-center text-sm font-extrabold text-white"
+                className="mb-3 block w-full rounded-2xl bg-blue-100 hover:bg-blue-500 text-white font-bold text-sm px-6 py-4 text-center text-sm font-extrabold text-white"
               >
                 Simular Consórcio
               </a>
