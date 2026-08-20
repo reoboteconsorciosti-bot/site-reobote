@@ -29,24 +29,24 @@ const HERO_BACKGROUND_IMAGES = [
  */
 export function HeroBackgroundCarousel() {
   const [activeIndex, setActiveIndex] = useState(0)
-  const [imagesReady, setImagesReady] = useState(false)
+  // Quais índices já terminaram de carregar — a 1ª imagem aparece assim que
+  // ELA (só ela) estiver pronta, em vez de esperar as 4 baixarem por
+  // completo. Isso era o principal gargalo do "site demora pra entrar":
+  // com a lógica antiga, o Hero inteiro ficava com opacity:0 (fundo preto
+  // liso) até a mais lenta das 4 imagens de fundo terminar.
+  const [loadedIndexes, setLoadedIndexes] = useState<Set<number>>(new Set())
 
-  // Preload de todas as imagens antes de liberar a exibição/ciclo automático,
-  // evitando flash em branco ou atraso perceptível na primeira troca.
   useEffect(() => {
     if (HERO_BACKGROUND_IMAGES.length === 0) return
 
     let cancelled = false
-    let loadedCount = 0
 
-    HERO_BACKGROUND_IMAGES.forEach((src) => {
+    HERO_BACKGROUND_IMAGES.forEach((src, index) => {
       const img = new window.Image()
       img.src = src
       img.onload = img.onerror = () => {
-        loadedCount += 1
-        if (!cancelled && loadedCount === HERO_BACKGROUND_IMAGES.length) {
-          setImagesReady(true)
-        }
+        if (cancelled) return
+        setLoadedIndexes((prev) => (prev.has(index) ? prev : new Set(prev).add(index)))
       }
     })
 
@@ -55,19 +55,24 @@ export function HeroBackgroundCarousel() {
     }
   }, [])
 
+  const primeiraImagemPronta = loadedIndexes.has(0)
+
   // Avança para a próxima imagem em loop infinito. Usa um único setTimeout
   // recriado a cada troca (em vez de setInterval), garantindo que nunca haja
   // mais de um timer ativo simultaneamente e que ele seja sempre limpo no
-  // unmount ou antes de ser recriado.
+  // unmount ou antes de ser recriado. Só começa a ciclar depois que pelo
+  // menos a primeira imagem já está visível — não precisa esperar as
+  // outras 3, elas têm até SLIDE_DURATION (7s) de folga pra carregar em
+  // segundo plano antes de entrarem no rodízio.
   useEffect(() => {
-    if (!imagesReady || HERO_BACKGROUND_IMAGES.length < 2) return
+    if (!primeiraImagemPronta || HERO_BACKGROUND_IMAGES.length < 2) return
 
     const timeoutId = window.setTimeout(() => {
       setActiveIndex((current) => (current + 1) % HERO_BACKGROUND_IMAGES.length)
     }, SLIDE_DURATION)
 
     return () => window.clearTimeout(timeoutId)
-  }, [activeIndex, imagesReady])
+  }, [activeIndex, primeiraImagemPronta])
 
   return (
     <div className="absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
@@ -77,9 +82,13 @@ export function HeroBackgroundCarousel() {
           key={src}
           src={src}
           alt=""
+          // A 1ª imagem carrega com prioridade alta (é o plano de fundo do
+          // que aparece primeiro na tela); as demais ficam de baixa
+          // prioridade, sem competir por banda com ela.
+          fetchPriority={index === 0 ? 'high' : 'low'}
           className="hero-carousel-slide absolute inset-0 h-full w-full object-cover"
           style={{
-            opacity: imagesReady && index === activeIndex ? 1 : 0,
+            opacity: loadedIndexes.has(index) && index === activeIndex ? 1 : 0,
             transitionDuration: `${TRANSITION_DURATION}ms`,
             animationDuration: `${SLIDE_DURATION + TRANSITION_DURATION}ms`,
           }}

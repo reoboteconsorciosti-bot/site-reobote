@@ -333,6 +333,8 @@ export function Testimonials() {
                           <img
                             src={item.thumbnail}
                             alt={`Depoimento em vídeo - ${item.name}`}
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover brightness-90 group-hover/video:scale-105 transition-transform duration-700"
                           />
                         ) : (

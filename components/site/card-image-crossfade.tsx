@@ -31,23 +31,22 @@ export function CardImageCrossfade({
   transitionDuration = 1200,
 }: CardImageCrossfadeProps) {
   const [activeIndex, setActiveIndex] = useState(0)
-  const [imagesReady, setImagesReady] = useState(false)
+  // Quais índices já carregaram — a 1ª imagem aparece assim que ELA estiver
+  // pronta, sem esperar as outras (mesmo ajuste feito no HeroBackgroundCarousel:
+  // esperar todas travava a exibição pela mais lenta do grupo à toa).
+  const [loadedIndexes, setLoadedIndexes] = useState<Set<number>>(new Set())
 
-  // Preload de todas as imagens antes de liberar o ciclo automático.
   useEffect(() => {
     if (images.length === 0) return
 
     let cancelled = false
-    let loadedCount = 0
 
-    images.forEach((src) => {
+    images.forEach((src, index) => {
       const img = new window.Image()
       img.src = src
       img.onload = img.onerror = () => {
-        loadedCount += 1
-        if (!cancelled && loadedCount === images.length) {
-          setImagesReady(true)
-        }
+        if (cancelled) return
+        setLoadedIndexes((prev) => (prev.has(index) ? prev : new Set(prev).add(index)))
       }
     })
 
@@ -56,16 +55,18 @@ export function CardImageCrossfade({
     }
   }, [images])
 
+  const primeiraImagemPronta = loadedIndexes.has(0)
+
   // Avança para a próxima imagem em loop infinito.
   useEffect(() => {
-    if (!imagesReady || images.length < 2) return
+    if (!primeiraImagemPronta || images.length < 2) return
 
     const timeoutId = window.setTimeout(() => {
       setActiveIndex((current) => (current + 1) % images.length)
     }, slideDuration)
 
     return () => window.clearTimeout(timeoutId)
-  }, [activeIndex, imagesReady, images, slideDuration])
+  }, [activeIndex, primeiraImagemPronta, images.length, slideDuration])
 
   return (
     <>
@@ -75,9 +76,11 @@ export function CardImageCrossfade({
           key={src}
           src={src}
           alt={index === 0 ? alt : ''}
+          loading="lazy"
+          decoding="async"
           className={className}
           style={{
-            opacity: imagesReady && index === activeIndex ? 1 : 0,
+            opacity: loadedIndexes.has(index) && index === activeIndex ? 1 : 0,
             transitionProperty: 'opacity, transform',
             transitionDuration: `${transitionDuration}ms, 700ms`,
             transitionTimingFunction: 'ease, ease-out',

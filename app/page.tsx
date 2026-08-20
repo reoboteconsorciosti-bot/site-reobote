@@ -15,6 +15,17 @@ function SitePreloader() {
   // Esconde a logo imediatamente para evitar flash (logo visível no header antes da animação).
   // Limpa transforms residuais que podem surgir em hot-reloads no dev.
   useLayoutEffect(() => {
+    // Celular e tablet (< 1024px, breakpoint `lg`): a animação de abertura
+    // inteira é pulada, não só o voo do clone — o overlay #preloader é
+    // `position: fixed; inset:0` via CSS puro, então some aqui mesmo,
+    // antes do primeiro paint, pra nunca bloquear a tela. A logo do
+    // header nem chega a ser escondida: fica fixa e visível desde já.
+    if (window.matchMedia('(max-width: 1023px)').matches) {
+      const preloader = document.getElementById('preloader')
+      if (preloader) preloader.style.display = 'none'
+      return
+    }
+
     const header = document.getElementById('siteHeader')
     const logo = document.getElementById('logo-img') as HTMLImageElement | null
     const mainNav = document.querySelector('#siteHeader .main-nav') as HTMLElement | null
@@ -32,6 +43,11 @@ function SitePreloader() {
   }, [])
 
   useEffect(() => {
+    // Celular/tablet já foi resolvido de forma síncrona no useLayoutEffect
+    // acima (overlay escondido antes do primeiro paint) — nada a fazer
+    // aqui, nem vale a pena escutar 'load' ou armar o safety timeout.
+    if (window.matchMedia('(max-width: 1023px)').matches) return
+
     const cleanup = () => {
       const logoEl = document.getElementById('logo-img') as HTMLImageElement | null
       const header = document.getElementById('siteHeader')
@@ -863,7 +879,7 @@ export default function Page() {
             {/* CARD 2: IMOBILIÁRIO */}
             <section className="group active:scale-[0.99] card-sticky w-full h-[450px] md:h-[520px] rounded-[32px] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] border border-slate-800/80 relative transition-all duration-500 cursor-pointer">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/consorcio/casa.avif" alt="Imóvel" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
+              <img src="/images/consorcio/casa.avif" alt="Imóvel" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
               <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-slate-950/95 via-slate-950/70 to-transparent"></div>
 
               <div className="absolute inset-0 p-6 md:p-10 flex flex-col justify-between z-10 max-w-xl">
@@ -928,7 +944,7 @@ export default function Page() {
             {/* CARD 4: CAMINHÃO */}
             <section className="group active:scale-[0.99] card-sticky w-full h-[450px] md:h-[520px] rounded-[32px] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] border border-slate-800/80 relative transition-all duration-500 cursor-pointer">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/consorcio/post_thumbnail-92a23fafe8ad0a93598b44db4be69621.jpg" alt="Caminhão" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
+              <img src="/images/consorcio/post_thumbnail-92a23fafe8ad0a93598b44db4be69621.jpg" alt="Caminhão" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
               <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-slate-950/95 via-slate-950/70 to-transparent"></div>
 
               <div className="absolute inset-0 p-6 md:p-10 flex flex-col justify-between z-10 max-w-xl">
@@ -1120,7 +1136,7 @@ export default function Page() {
         <div className="container">
           <div className="footer-grid">
             <div>
-              <img src="/images/logo/LOGO-BRANCA.png" alt="Reobote Consórcios" className="footer-logo" />
+              <img src="/images/logo/LOGO-BRANCA.png" alt="Reobote Consórcios" loading="lazy" decoding="async" className="footer-logo" />
               <p>Planejamento financeiro inteligente para você conquistar seus objetivos sem juros, com consultoria humana de verdade.</p>
               <div className="footer-social">
                 <a href="https://www.instagram.com/reoboteconsorcios/" aria-label="Instagram">
