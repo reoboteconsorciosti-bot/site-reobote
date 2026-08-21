@@ -124,6 +124,25 @@ function toDateKey(data: Date) {
   return `${y}-${m}-${d}`
 }
 
+function isBusinessDay(data: Date) {
+  const dia = data.getDay()
+  return dia >= 1 && dia <= 5
+}
+
+// "Amanhã" de verdade só faz sentido como dia útil — o CRM recusa (400)
+// data que caia em fim de semana. Sem isso, clicar em "Agendar para
+// amanhã" numa sexta (amanhã = sábado) ou num sábado (amanhã = domingo)
+// sempre falhava, mesmo com tudo funcionando certo — o GET chegava no
+// backend normalmente, só que pra uma data que o CRM nunca aceitaria.
+function getProximoDiaUtil(apartirDe: Date) {
+  const proximo = new Date(apartirDe)
+  proximo.setDate(proximo.getDate() + 1)
+  while (!isBusinessDay(proximo)) {
+    proximo.setDate(proximo.getDate() + 1)
+  }
+  return proximo
+}
+
 interface AvailabilitySlot {
   time: string
   available: boolean
@@ -218,11 +237,12 @@ export function Simulator() {
   const activeSegment = segments.find(s => s.id === segmentId)!
   const config = activeSegment[simMode]
 
-  // "Hoje" e "amanhã" em termos de calendário local do navegador de quem
-  // está preenchendo — é o mesmo dia que os botões "Agendar reunião para
-  // hoje"/"Agendar para amanhã" prometem mostrar.
+  // "Hoje" em termos de calendário local do navegador de quem está
+  // preenchendo. "Amanhã" é o próximo dia útil a partir de hoje (nunca
+  // fim de semana) — ver getProximoDiaUtil.
   const hojeKey = toDateKey(new Date())
-  const amanhaKey = toDateKey(new Date(Date.now() + 24 * 60 * 60 * 1000))
+  const amanhaDate = getProximoDiaUtil(new Date())
+  const amanhaKey = toDateKey(amanhaDate)
   const dataKeySelecionada = agendamentoOpcao === 'hoje' ? hojeKey : agendamentoOpcao === 'amanha' ? amanhaKey : null
   const slotsSelecionados = dataKeySelecionada ? horariosPorData[dataKeySelecionada] : undefined
 
@@ -459,7 +479,7 @@ export function Simulator() {
       return `Hoje, ${formatarDataExtenso(new Date())} às ${agendamentoHorario}`
     }
     if (agendamentoOpcao === 'amanha') {
-      return `Amanhã, ${formatarDataExtenso(new Date(Date.now() + 24 * 60 * 60 * 1000))} às ${agendamentoHorario}`
+      return `Amanhã, ${formatarDataExtenso(amanhaDate)} às ${agendamentoHorario}`
     }
     if (agendamentoOpcao === 'outro') {
       return `Disponibilidade informada pelo lead: ${agendamentoDisponibilidade.trim()}`
@@ -974,7 +994,7 @@ export function Simulator() {
                           {
                             id: 'amanha' as const,
                             titulo: 'Agendar para amanhã',
-                            subtitulo: formatarDataExtenso(new Date(Date.now() + 24 * 60 * 60 * 1000)),
+                            subtitulo: formatarDataExtenso(amanhaDate),
                           },
                           {
                             id: 'outro' as const,
