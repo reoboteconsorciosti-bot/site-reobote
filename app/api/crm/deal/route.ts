@@ -33,7 +33,7 @@ export async function POST(req: Request) {
 
   try {
     const { dealId, contactId } = await createDeal(validated.data)
-    registerLead(dealId, contactId, validated.data.nome, validated.data.telefone)
+    registerLead(dealId, contactId, validated.data.nome, validated.data.telefone, validated.data.descricao ?? '')
 
     return NextResponse.json({ success: true, dealId, contactId }, { status: 201 })
   } catch (err) {

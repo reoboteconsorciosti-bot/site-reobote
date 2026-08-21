@@ -116,12 +116,18 @@ export function validateDealNote(body: unknown): { ok: true; data: DealNoteInput
 
 // ─── POST /api/crm/notificar ───────────────────────────────────────────
 // Nome/telefone NUNCA entram aqui — quem chama /api/crm/notificar só pode
-// informar o que aconteceu nesta chamada (agendou ou não, quando, ou qual
-// preferência foi escrita); quem é o lead vem sempre do lead-registry,
-// nunca do body (ver app/api/crm/notificar/route.ts).
+// informar o que aconteceu nesta chamada (agendou ou não, quando, qual
+// preferência foi escrita, ou só que o negócio foi criado); quem é o lead
+// vem sempre do lead-registry, nunca do body (ver
+// app/api/crm/notificar/route.ts).
 export type NotifyInput =
   | { dealId: string; agendado: true; data: string; hora: string }
   | { dealId: string; agendado: false; preferenciaHorario: string }
+  // Disparado ao clicar "Continuar simulação": o negócio já existe no CRM,
+  // mas o lead ainda não escolheu horário nem deixou preferência — sem
+  // isso, quem some no meio do fluxo de agendamento nunca gera aviso
+  // nenhum pro consultor, mesmo já tendo virado um negócio real no CRM.
+  | { dealId: string; agendado: false; negocioCriado: true }
 
 export function validateNotify(body: unknown): { ok: true; data: NotifyInput } | { ok: false; error: string } {
   if (typeof body !== 'object' || body === null) return { ok: false, error: 'Corpo inválido' }
@@ -134,6 +140,10 @@ export function validateNotify(body: unknown): { ok: true; data: NotifyInput } |
     if (!validateDate(b.data)) return { ok: false, error: 'Data inválida' }
     if (!validateFixedSlotTime(b.hora)) return { ok: false, error: 'Horário inválido' }
     return { ok: true, data: { dealId: b.dealId as string, agendado: true, data: b.data as string, hora: b.hora as string } }
+  }
+
+  if (b.negocioCriado === true) {
+    return { ok: true, data: { dealId: b.dealId as string, agendado: false, negocioCriado: true } }
   }
 
   if (!isNonEmptyString(b.preferenciaHorario) || (b.preferenciaHorario as string).length > MAX_PREFERENCIA_LENGTH) {

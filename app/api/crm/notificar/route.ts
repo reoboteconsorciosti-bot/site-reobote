@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { notifyCrmAgendamento } from '@/lib/crm-notify'
+import { notifySiteWorkflow, type NotifyEvent } from '@/lib/site-notify'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { validateNotify } from '@/lib/validation'
 import { getRegisteredLead } from '@/lib/lead-registry'
@@ -7,11 +7,14 @@ import { getRegisteredLead } from '@/lib/lead-registry'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// Dispara o aviso via WhatsApp (workflow "agendamento-lp" no n8n, mesmo
-// usado pela landing page) pro consultor e o supervisor. Chamada depois de
-// POST /api/crm/agendamento (agendou de verdade) ou POST /api/crm/nota
-// (só deixou uma preferência de horário) — nunca decide sozinha o que
-// aconteceu, só avisa sobre algo que já foi confirmado antes.
+// Dispara o aviso pro consultor/supervisor em 3 momentos possíveis — logo
+// após POST /api/crm/deal (negócio criado, ainda sem agendamento — só
+// depois de um timeout de 5min sem o lead terminar, ver
+// components/site/simulator.tsx), depois de POST /api/crm/agendamento
+// (agendou de verdade) ou de POST /api/crm/nota (só deixou uma preferência
+// de horário) — sempre pro mesmo webhook do simulador (WHATSAPP_WEBHOOK_URL,
+// ver lib/site-notify.ts). Esta rota nunca decide sozinha o que aconteceu,
+// só avisa sobre algo que já foi confirmado antes.
 export async function POST(req: Request) {
   // Generoso mas ainda limitado — best-effort não deve virar porta aberta
   // pra inundar o WhatsApp do time com avisos forjados.
@@ -36,39 +39,33 @@ export async function POST(req: Request) {
   // mensagem inventada pro WhatsApp do consultor/supervisor. Os únicos
   // dados que realmente identificam quem é o lead vêm do registro que só
   // /api/crm/deal consegue criar; do body só aceitamos o que descreve O QUE
-  // ACONTECEU nesta chamada (agendou ou não, quando, ou qual preferência).
+  // ACONTECEU nesta chamada (agendou ou não, quando, qual preferência, ou
+  // só que o negócio existe sem agendamento).
   const registered = getRegisteredLead(input.dealId)
   if (!registered) {
     return NextResponse.json({ error: 'Negócio não encontrado' }, { status: 404 })
   }
 
-  const payload = input.agendado
-    ? ({
-        nome: registered.nome,
-        telefone: registered.telefone,
-        dealId: input.dealId,
-        contactId: registered.contactId,
-        agendado: true as const,
-        data: input.data,
-        hora: input.hora,
-        origem: 'site' as const,
-      })
-    : ({
-        nome: registered.nome,
-        telefone: registered.telefone,
-        dealId: input.dealId,
-        contactId: registered.contactId,
-        agendado: false as const,
-        preferenciaHorario: input.preferenciaHorario,
-        origem: 'site' as const,
-      })
+  const evento: NotifyEvent =
+    'negocioCriado' in input
+      ? { tipo: 'sem_agendamento' }
+      : input.agendado
+        ? { tipo: 'agendado', data: input.data, hora: input.hora }
+        : { tipo: 'preferencia_horario', preferenciaHorario: input.preferenciaHorario }
 
   // Sem `await`: o aviso de WhatsApp nunca pode travar a resposta pro
   // usuário — o negócio/agendamento já foi confirmado no CRM antes desta
-  // chamada, então dispara e responde 202 na hora. notifyCrmAgendamento já
-  // é best-effort por dentro (nunca relança), mas o .catch aqui é uma
-  // segunda rede de segurança contra qualquer rejeição não tratada.
-  notifyCrmAgendamento(payload).catch((err) => console.error('[api/crm/notificar] falha inesperada', err))
+  // chamada, então dispara e responde 202 na hora. notifySiteWorkflow já é
+  // best-effort por dentro (nunca relança), o .catch aqui é uma segunda
+  // rede de segurança contra qualquer rejeição não tratada.
+  notifySiteWorkflow({
+    nome: registered.nome,
+    telefone: registered.telefone,
+    dealId: input.dealId,
+    contactId: registered.contactId,
+    descricao: registered.descricao,
+    evento,
+  }).catch((err) => console.error('[api/crm/notificar] falha inesperada', err))
 
   return NextResponse.json({ ok: true }, { status: 202 })
 }

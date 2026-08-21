@@ -21,11 +21,4 @@ export const crmEnv = {
   // CRM_CONSULTOR_ID no ambiente pra sobrescrever sem precisar mexer em
   // código.
   consultorId: () => process.env.CRM_CONSULTOR_ID || 'cms5fphdf0000tovpws607y7a',
-
-  // Webhook do n8n que avisa o Vinícius e o Renan (supervisor) via
-  // WhatsApp/Evolution API quando alguém agenda (ou pede outro horário) —
-  // é o mesmo workflow "agendamento-lp" já usado noutras integrações,
-  // então tem uma URL própria, separada do WHATSAPP_WEBHOOK_URL do
-  // simulador (rotas diferentes do mesmo n8n, propósitos diferentes).
-  notifyWebhookUrl: () => required('CRM_NOTIFY_WEBHOOK_URL'),
 }

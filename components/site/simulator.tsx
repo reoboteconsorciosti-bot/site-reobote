@@ -109,6 +109,12 @@ function formatarDataExtenso(data: Date) {
   return `${diaSemana}, ${dia} de ${mes}`
 }
 
+// Tempo de espera após "Continuar simulação" antes de criar o negócio no
+// CRM e avisar "cliente se interessou mas não marcou agendamento" — só
+// dispara se o lead não completar o agendamento antes disso (ver
+// avancarParaAgendamento/criarNegocioSeNecessario).
+const AVISO_SEM_AGENDAMENTO_DELAY_MS = 3 * 60 * 1000
+
 // "YYYY-MM-DD" no fuso local do navegador — é o formato que a rota interna
 // GET /api/crm/disponibilidade?date=... espera.
 function toDateKey(data: Date) {
@@ -183,6 +189,21 @@ export function Simulator() {
   const [dealStatus, setDealStatus] = useState<'idle' | 'creating' | 'error'>('idle')
   const [dealError, setDealError] = useState('')
 
+  // Timer de 5 minutos armado assim que o negócio é criado: se o lead não
+  // terminar o agendamento (não clicar em "Ver simulação completa") até lá,
+  // avisa o consultor que "o lead se interessou mas não agendou a visita".
+  // Cancelado assim que a simulação é enviada com sucesso — nesse caso o
+  // aviso real (agendado/preferência) já cobre o consultor, não faz sentido
+  // mandar os dois.
+  const semAgendamentoTimeoutRef = useRef<number | null>(null)
+
+  const cancelarAvisoSemAgendamento = () => {
+    if (semAgendamentoTimeoutRef.current !== null) {
+      window.clearTimeout(semAgendamentoTimeoutRef.current)
+      semAgendamentoTimeoutRef.current = null
+    }
+  }
+
   // Grade real de horários (hoje/amanhã), buscada no back — que por sua vez
   // consulta o CRM — assim que o lead confirma os dados pessoais, antes de
   // ele sequer ver a tela de agendamento.
@@ -208,6 +229,10 @@ export function Simulator() {
   useEffect(() => {
     setValue(config.default)
   }, [segmentId, simMode, config.default])
+
+  // Garante que o timer de 5min nunca sobrevive ao componente (ex: usuário
+  // sai da página com o card de agendamento aberto).
+  useEffect(() => cancelarAvisoSemAgendamento, [])
 
   useLayoutEffect(() => {
     const frontEl = frontRef.current
@@ -334,46 +359,84 @@ export function Simulator() {
         : `Prazo para Contratar: ${prazoContratacao}`,
     ].join('\n')
 
-  // Ao confirmar os dados pessoais, cria o negócio de verdade no CRM (só
-  // depois disso existe um dealId/contactId real pra reservar um horário
-  // — ver POST /api/crm/agendamento em enviarSimulacao) e então avança
-  // para o próximo verso do card — o agendamento. O GET pra saber quais
-  // horários existem de verdade dispara junto, em paralelo, em vez de
-  // esperar o lead escolher "hoje"/"amanhã" pra só então ir buscar — assim
-  // a grade real já está pronta (ou a caminho) quando a tela aparece.
-  const avancarParaAgendamento = async () => {
+  // Cria o negócio no CRM só na primeira vez que alguém realmente precisa
+  // dele — no timeout de 5min (se o lead não terminar) ou em
+  // enviarSimulacao (se terminar antes) — nunca no clique de "Continuar
+  // simulação" em si. Os dois pontos de chamada usam essa mesma função;
+  // `negocioPromiseRef` garante que, se os dois dispararem quase ao mesmo
+  // tempo, só uma requisição de criação saia (a segunda chamada espera a
+  // mesma promise em vez de criar um negócio duplicado).
+  const negocioPromiseRef = useRef<Promise<{ dealId: string; contactId: string }> | null>(null)
+
+  const criarNegocioSeNecessario = (): Promise<{ dealId: string; contactId: string }> => {
+    if (dealId && contactId) return Promise.resolve({ dealId, contactId })
+    if (negocioPromiseRef.current) return negocioPromiseRef.current
+
+    const promise = (async () => {
+      setDealStatus('creating')
+      setDealError('')
+      try {
+        const resposta = await fetch('/api/crm/deal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nome: name.trim(),
+            telefone: phone,
+            descricao: montarDescricaoDeal(),
+            origem: 'Simulador Online - site Reobote Consórcios',
+          }),
+        })
+        const dados = await resposta.json().catch(() => null)
+
+        if (!resposta.ok || !dados?.success) {
+          throw new Error(dados?.error || 'Não foi possível registrar seus dados agora.')
+        }
+
+        setDealId(dados.dealId)
+        setContactId(dados.contactId)
+        setDealStatus('idle')
+        return { dealId: dados.dealId as string, contactId: dados.contactId as string }
+      } catch (err) {
+        setDealStatus('error')
+        setDealError(err instanceof Error ? err.message : 'Erro inesperado ao registrar seus dados.')
+        throw err
+      } finally {
+        negocioPromiseRef.current = null
+      }
+    })()
+
+    negocioPromiseRef.current = promise
+    return promise
+  }
+
+  // Ao confirmar os dados pessoais, só avança pro próximo verso do card —
+  // o agendamento — e busca a grade real de horários (não depende de
+  // negócio nenhum criado ainda). O negócio em si (POST /api/crm/deal) só
+  // é criado daqui 5 minutos, e só se o lead não terminar sozinho antes
+  // disso (ver criarNegocioSeNecessario/enviarSimulacao) — clicar aqui não
+  // deve, sozinho, gerar negócio nenhum no CRM.
+  const avancarParaAgendamento = () => {
     if (!validateForm()) return
 
     setAgendamentoErrors({})
-    setDealStatus('creating')
-    setDealError('')
+    setStep2Flipped(true)
+    carregarDisponibilidade()
 
-    try {
-      const resposta = await fetch('/api/crm/deal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nome: name.trim(),
-          telefone: phone,
-          descricao: montarDescricaoDeal(),
-          origem: 'Simulador Online - site Reobote Consórcios',
-        }),
-      })
-      const dados = await resposta.json().catch(() => null)
-
-      if (!resposta.ok || !dados?.success) {
-        throw new Error(dados?.error || 'Não foi possível registrar seus dados agora.')
+    cancelarAvisoSemAgendamento()
+    semAgendamentoTimeoutRef.current = window.setTimeout(async () => {
+      semAgendamentoTimeoutRef.current = null
+      try {
+        const { dealId: id } = await criarNegocioSeNecessario()
+        await fetch('/api/crm/notificar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dealId: id, agendado: false, negocioCriado: true }),
+        })
+      } catch {
+        // Best-effort: se nem o negócio conseguir ser criado, não há o que
+        // avisar — a falha já fica registrada no log da própria rota.
       }
-
-      setDealId(dados.dealId)
-      setContactId(dados.contactId)
-      setDealStatus('idle')
-      setStep2Flipped(true)
-      carregarDisponibilidade()
-    } catch (err) {
-      setDealStatus('error')
-      setDealError(err instanceof Error ? err.message : 'Erro inesperado ao registrar seus dados.')
-    }
+    }, AVISO_SEM_AGENDAMENTO_DELAY_MS)
   }
 
   const validateAgendamento = () => {
@@ -431,22 +494,21 @@ export function Simulator() {
   const enviarSimulacao = async () => {
     if (!validateAgendamento()) return
 
-    if (!dealId || !contactId) {
-      setSubmitStatus('error')
-      setStatusMessage('Não foi possível identificar seu cadastro. Volte e tente novamente.')
-      return
-    }
-
     setSubmitStatus('loading')
     setStatusMessage('Enviando sua simulação...')
     setLinkWhatsappGerado('')
 
     try {
+      // Cria o negócio no CRM agora, se o timeout de 5min ainda não tiver
+      // criado (ver criarNegocioSeNecessario) — é aqui que "quando foi
+      // agendado" passa a existir de fato no negócio.
+      const { dealId: id, contactId: cid } = await criarNegocioSeNecessario()
+
       if (agendamentoOpcao === 'hoje' || agendamentoOpcao === 'amanha') {
         const respAgenda = await fetch('/api/crm/agendamento', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ dealId, contactId, date: dataKeySelecionada, time: agendamentoHorario }),
+          body: JSON.stringify({ dealId: id, contactId: cid, date: dataKeySelecionada, time: agendamentoHorario }),
         })
 
         if (respAgenda.status === 409) {
@@ -470,7 +532,7 @@ export function Simulator() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            dealId,
+            dealId: id,
             nota: `Disponibilidade informada pelo lead: ${agendamentoDisponibilidade.trim()}`,
           }),
         })
@@ -480,16 +542,21 @@ export function Simulator() {
         }
       }
 
-      // Aviso via WhatsApp (workflow "agendamento-lp" no n8n) pro consultor
-      // e o supervisor — best-effort do lado do servidor (a rota interna
-      // nunca relança), então não precisa travar o fluxo do lead esperando.
+      // O agendamento (ou a nota de preferência) foi confirmado de
+      // verdade — cancela o aviso de "interessado mas não agendou" armado
+      // em avancarParaAgendamento, pra não mandar os dois pro consultor.
+      cancelarAvisoSemAgendamento()
+
+      // Aviso via WhatsApp pro consultor e o supervisor — best-effort do
+      // lado do servidor (a rota interna nunca relança), então não precisa
+      // travar o fluxo do lead esperando.
       fetch('/api/crm/notificar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
           agendamentoOpcao === 'outro'
-            ? { dealId, agendado: false, preferenciaHorario: agendamentoDisponibilidade.trim() }
-            : { dealId, agendado: true, data: dataKeySelecionada, hora: agendamentoHorario }
+            ? { dealId: id, agendado: false, preferenciaHorario: agendamentoDisponibilidade.trim() }
+            : { dealId: id, agendado: true, data: dataKeySelecionada, hora: agendamentoHorario }
         ),
       }).catch(() => {})
 
@@ -854,32 +921,20 @@ export function Simulator() {
                 )}
               </div>
 
-              {/* Botão que agora cria o negócio de verdade no CRM e só então
-                  avança para o agendamento — o gatilho da reserva do horário
-                  em si foi movido pro botão "Ver simulação completa" no
-                  próximo verso do card. */}
+              {/* Botão só avança pro agendamento — não cria nada no CRM
+                  ainda. O negócio de verdade só nasce daqui 5 minutos (se o
+                  lead não terminar sozinho antes) ou no clique de "Ver
+                  simulação completa", o que vier primeiro — ver
+                  criarNegocioSeNecessario. */}
               <div className="pt-6 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={avancarParaAgendamento}
-                  disabled={dealStatus === 'creating'}
-                  className="w-full bg-[#009CDE] hover:bg-[#008cc7] disabled:bg-[#008cc7]/80 text-white font-bold text-sm py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 shadow-md shadow-[#009CDE]/10 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer disabled:translate-y-0 disabled:cursor-not-allowed"
+                  className="w-full bg-[#009CDE] hover:bg-[#008cc7] text-white font-bold text-sm py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 shadow-md shadow-[#009CDE]/10 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
                 >
-                  {dealStatus === 'creating' ? (
-                    <>
-                      <Loader2 className="w-4.5 h-4.5 animate-spin" />
-                      Registrando seus dados...
-                    </>
-                  ) : (
-                    <>
-                      Continuar simulação
-                      <ArrowRight className="w-4.5 h-4.5" />
-                    </>
-                  )}
+                  Continuar simulação
+                  <ArrowRight className="w-4.5 h-4.5" />
                 </button>
-                {dealStatus === 'error' && (
-                  <p className="text-red-500 text-[11px] font-semibold px-1 mt-2 text-center">{dealError}</p>
-                )}
               </div>
               </div>
 

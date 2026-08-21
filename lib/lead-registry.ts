@@ -17,6 +17,12 @@ type RegisteredLead = {
   contactId: string
   nome: string
   telefone: string
+  // Resumo da simulação (tipo de consórcio, modo, valor, motivo/prazo) já
+  // montado no clique de "Continuar simulação" — guardado aqui pra o aviso
+  // de "interessado mas não agendou" (disparado 5min depois, se o lead não
+  // terminar) poder incluir esse contexto sem precisar confiar em nada que
+  // o cliente mande de volta na hora do aviso.
+  descricao: string
   createdAt: number
 }
 
@@ -33,8 +39,8 @@ setInterval(
   30 * 60 * 1000
 ).unref()
 
-export function registerLead(dealId: string, contactId: string, nome: string, telefone: string): void {
-  registry.set(dealId, { contactId, nome, telefone, createdAt: Date.now() })
+export function registerLead(dealId: string, contactId: string, nome: string, telefone: string, descricao: string): void {
+  registry.set(dealId, { contactId, nome, telefone, descricao, createdAt: Date.now() })
 }
 
 export function getRegisteredLead(dealId: string): RegisteredLead | undefined {
