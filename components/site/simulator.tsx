@@ -113,7 +113,7 @@ function formatarDataExtenso(data: Date) {
 // CRM e avisar "cliente se interessou mas não marcou agendamento" — só
 // dispara se o lead não completar o agendamento antes disso (ver
 // avancarParaAgendamento/criarNegocioSeNecessario).
-const AVISO_SEM_AGENDAMENTO_DELAY_MS = 3 * 60 * 1000
+const AVISO_SEM_AGENDAMENTO_DELAY_MS = 3 * 60 * 1000 // temporário — era 5 * 60 * 1000 (5 min), agora 20s só para teste
 
 // "YYYY-MM-DD" no fuso local do navegador — é o formato que a rota interna
 // GET /api/crm/disponibilidade?date=... espera.
@@ -443,9 +443,10 @@ export function Simulator() {
     carregarDisponibilidade()
 
     cancelarAvisoSemAgendamento()
-    semAgendamentoTimeoutRef.current = window.setTimeout(async () => {
+    semAgendamentoTimeoutRef.current = window.setTimeout(async () => { // temporário — 20s para teste
       semAgendamentoTimeoutRef.current = null
       try {
+        // Tenta criar o negócio no CRM e notificar pela rota normal
         const { dealId: id } = await criarNegocioSeNecessario()
         await fetch('/api/crm/notificar', {
           method: 'POST',
@@ -453,8 +454,30 @@ export function Simulator() {
           body: JSON.stringify({ dealId: id, agendado: false, negocioCriado: true }),
         })
       } catch {
-        // Best-effort: se nem o negócio conseguir ser criado, não há o que
-        // avisar — a falha já fica registrada no log da própria rota.
+        // temporário — fallback: se o CRM falhou, envia direto pelo webhook
+        // do simulador para o consultor saber que houve interesse mesmo sem
+        // o deal ter sido criado no CRM.
+        try {
+          await fetch('/api/simulador-webhook', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tipoConsórcio: activeSegment.label,
+              desejaSimular: simMode === 'credito' ? 'Valor do Crédito' : 'Valor da Parcela',
+              valorDesejado: value,
+              nome: name.trim(),
+              telefone: phone,
+              perguntaExtraTipo,
+              motivoInteresse: perguntaExtraTipo === 'motivacao' ? motivoInteresse.trim() : undefined,
+              prazoContratacao: perguntaExtraTipo === 'prazo' ? prazoContratacao : undefined,
+              agendamentoOpcao: 'outro' as AgendamentoOpcao,
+              agendamentoDisponibilidade: 'Cliente se interessou mas não agendou visita',
+              reuniaoLead: 'Cliente se interessou mas não agendou visita',
+            }),
+          })
+        } catch {
+          // Best-effort: se nem o fallback funcionar, nada mais a fazer
+        }
       }
     }, AVISO_SEM_AGENDAMENTO_DELAY_MS)
   }
@@ -578,7 +601,7 @@ export function Simulator() {
             ? { dealId: id, agendado: false, preferenciaHorario: agendamentoDisponibilidade.trim() }
             : { dealId: id, agendado: true, data: dataKeySelecionada, hora: agendamentoHorario }
         ),
-      }).catch(() => {})
+      }).catch(() => { })
 
       const payload = construirPayload()
       setLastPayload(payload)
@@ -777,409 +800,409 @@ export function Simulator() {
                 style={innerCardHeight ? { height: innerCardHeight } : undefined}
               >
 
-              {/* VERSO B.1: Coleta de Dados Pessoais */}
-              <div ref={innerFrontRef} className="card-front flex flex-col justify-between gap-6">
-              <div className="flex flex-col gap-6">
-                {/* Header */}
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setIsFlipped(false)}
-                    disabled={submitStatus === 'loading'}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-[#009CDE] transition-colors mb-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    Voltar e alterar valores
-                  </button>
-                  <h3 className="text-xl font-extrabold text-[#313335] tracking-tight">Estamos quase lá!</h3>
-                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                    Insira seus dados abaixo para receber as propostas completas de consórcio personalizadas no seu WhatsApp.
-                  </p>
-                </div>
-
-                {/* Input Nome */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-bold tracking-widest text-slate-400 uppercase">
-                    Seu nome completo
-                  </label>
-                  <div className="relative flex items-center">
-                    <User className="absolute left-4 w-5 h-5 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Digite seu nome..."
-                      value={name}
-                      disabled={submitStatus === 'loading'}
-                      onChange={(e) => {
-                        setName(e.target.value)
-                        if (errors.name) setErrors(prev => ({ ...prev, name: false }))
-                      }}
-                      className={cn(
-                        "w-full bg-slate-50 border focus:bg-white rounded-2xl py-3.5 pl-12 pr-4 text-sm outline-none transition-all disabled:opacity-70 disabled:cursor-not-allowed",
-                        errors.name
-                          ? "border-red-500 focus:border-red-500"
-                          : "border-slate-100 focus:border-[#009CDE]"
-                      )}
-                      required
-                    />
-                  </div>
-                  {errors.name && (
-                    <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">deve preencher os campos primeiro</span>
-                  )}
-                </div>
-
-                {/* Input Telefone */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-bold tracking-widest text-slate-400 uppercase">
-                    Seu WhatsApp
-                  </label>
-                  <div className="relative flex items-center">
-                    <Phone className="absolute left-4 w-5 h-5 text-slate-400" />
-                    <input
-                      type="tel"
-                      placeholder="(00) 00000-0000"
-                      value={phone}
-                      disabled={submitStatus === 'loading'}
-                      onChange={handlePhoneChange}
-                      className={cn(
-                        "w-full bg-slate-50 border focus:bg-white rounded-2xl py-3.5 pl-12 pr-4 text-sm outline-none transition-all disabled:opacity-70 disabled:cursor-not-allowed",
-                        errors.phone
-                          ? "border-red-500 focus:border-red-500"
-                          : "border-slate-100 focus:border-[#009CDE]"
-                      )}
-                      required
-                    />
-                  </div>
-                  {errors.phone && (
-                    <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">deve preencher os campos primeiro</span>
-                  )}
-                </div>
-
-                {perguntaExtraTipo === 'motivacao' ? (
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold tracking-widest text-slate-400 uppercase">
-                      <span>O que motivou seu interesse pelo consórcio?</span>
-                    </label>
-                    <textarea
-                      placeholder="Descreva aqui..."
-                      value={motivoInteresse}
-                      disabled={submitStatus === 'loading'}
-                      onChange={(e) => {
-                        setMotivoInteresse(e.target.value)
-                        if (errors.motivoInteresse) {
-                          setErrors(prev => ({ ...prev, motivoInteresse: false }))
-                        }
-                      }}
-                      className={cn(
-                        "w-full bg-slate-50 border focus:bg-white rounded-2xl py-3.5 px-4 text-sm outline-none transition-all disabled:opacity-70 disabled:cursor-not-allowed min-h-[120px] resize-none",
-                        errors.motivoInteresse
-                          ? "border-red-500 focus:border-red-500"
-                          : "border-slate-100 focus:border-[#009CDE]"
-                      )}
-                      required
-                    />
-                    {errors.motivoInteresse && (
-                      <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">deve preencher os campos primeiro</span>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold tracking-widest text-slate-400 uppercase">
-                      <span>Para quando você pretende contratar o consórcio?</span>
-                    </label>
-                    <div className="grid grid-cols-1 gap-3">
-                      {(
-                        [
-                          'compra imediata',
-                          'curto prazo (até 30 dias)',
-                          'médio prazo (até 3 meses)',
-                          'apenas pesquisando por enquanto',
-                        ] as const
-                      ).map((opcao) => {
-                        const isActive = prazoContratacao === opcao
-                        return (
-                          <button
-                            key={opcao}
-                            type="button"
-                            disabled={submitStatus === 'loading'}
-                            onClick={() => {
-                              setPrazoContratacao(opcao)
-                              if (errors.prazoContratacao) {
-                                setErrors(prev => ({ ...prev, prazoContratacao: false }))
-                              }
-                            }}
-                            className={cn(
-                              "w-full bg-white border rounded-2xl px-4 py-4 flex items-center justify-between text-left transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer",
-                              isActive
-                                ? "border-[#009CDE] shadow-sm shadow-[#009CDE]/10"
-                                : "border-slate-100 hover:border-slate-200"
-                            )}
-                          >
-                            <span className="text-sm font-semibold text-[#313335] leading-snug">
-                              {opcao}
-                            </span>
-                            <span
-                              className={cn(
-                                "w-5 h-5 rounded-full border flex items-center justify-center shrink-0",
-                                isActive ? "border-[#009CDE]" : "border-slate-300"
-                              )}
-                            >
-                              <span
-                                className={cn(
-                                  "w-2.5 h-2.5 rounded-full",
-                                  isActive ? "bg-[#009CDE]" : "bg-transparent"
-                                )}
-                              />
-                            </span>
-                          </button>
-                        )
-                      })}
+                {/* VERSO B.1: Coleta de Dados Pessoais */}
+                <div ref={innerFrontRef} className="card-front flex flex-col justify-between gap-6">
+                  <div className="flex flex-col gap-6">
+                    {/* Header */}
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setIsFlipped(false)}
+                        disabled={submitStatus === 'loading'}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-[#009CDE] transition-colors mb-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                        Voltar e alterar valores
+                      </button>
+                      <h3 className="text-xl font-extrabold text-[#313335] tracking-tight">Estamos quase lá!</h3>
+                      <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                        Insira seus dados abaixo para receber as propostas completas de consórcio personalizadas no seu WhatsApp.
+                      </p>
                     </div>
-                    {errors.prazoContratacao && (
-                      <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">deve selecionar uma opção</span>
-                    )}
-                  </div>
-                )}
-              </div>
 
-              {/* Botão só avança pro agendamento — não cria nada no CRM
-                  ainda. O negócio de verdade só nasce daqui 5 minutos (se o
-                  lead não terminar sozinho antes) ou no clique de "Ver
-                  simulação completa", o que vier primeiro — ver
-                  criarNegocioSeNecessario. */}
-              <div className="pt-6 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={avancarParaAgendamento}
-                  className="w-full bg-[#009CDE] hover:bg-[#008cc7] text-white font-bold text-sm py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 shadow-md shadow-[#009CDE]/10 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-                >
-                  Continuar simulação
-                  <ArrowRight className="w-4.5 h-4.5" />
-                </button>
-              </div>
-              </div>
-
-              {/* VERSO B.2: Agendamento — gatilho real do webhook */}
-              <div ref={innerBackRef} className="card-back flex flex-col justify-between gap-6">
-                <div className="flex flex-col gap-6">
-                  {/* Header */}
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => setStep2Flipped(false)}
-                      disabled={submitStatus === 'loading'}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-[#009CDE] transition-colors mb-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ArrowLeft className="w-4 h-4" />
-                      Voltar e revisar meus dados
-                    </button>
-                    <h3 className="text-xl font-extrabold text-[#313335] tracking-tight">Vamos agendar sua conversa?</h3>
-                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                      Hoje é {formatarDataExtenso(new Date())}. Escolha a melhor forma de conversarmos sobre sua simulação.
-                    </p>
-                  </div>
-
-                  {/* 3 opções de agendamento */}
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold tracking-widest text-slate-400 uppercase">
-                      Quando podemos falar com você?
-                    </label>
-                    <div className="grid grid-cols-1 gap-3">
-                      {(
-                        [
-                          {
-                            id: 'hoje' as const,
-                            titulo: 'Agendar reunião para hoje',
-                            subtitulo: formatarDataExtenso(new Date()),
-                          },
-                          {
-                            id: 'amanha' as const,
-                            titulo: 'Agendar para amanhã',
-                            subtitulo: formatarDataExtenso(amanhaDate),
-                          },
-                          {
-                            id: 'outro' as const,
-                            titulo: 'Prefiro informar minha disponibilidade',
-                            subtitulo: 'Você escreve o melhor dia e horário',
-                          },
-                        ]
-                      ).map((opcao) => {
-                        const isActive = agendamentoOpcao === opcao.id
-                        return (
-                          <button
-                            key={opcao.id}
-                            type="button"
-                            disabled={submitStatus === 'loading'}
-                            onClick={() => {
-                              setAgendamentoOpcao(opcao.id)
-                              setAgendamentoErrors({})
-                              if (opcao.id !== agendamentoOpcao) {
-                                setAgendamentoHorario('')
-                              }
-                            }}
-                            className={cn(
-                              "w-full bg-white border rounded-2xl px-4 py-4 flex items-center justify-between text-left transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer",
-                              isActive
-                                ? "border-[#009CDE] shadow-sm shadow-[#009CDE]/10"
-                                : "border-slate-100 hover:border-slate-200"
-                            )}
-                          >
-                            <span className="flex flex-col">
-                              <span className="text-sm font-semibold text-[#313335] leading-snug">
-                                {opcao.titulo}
-                              </span>
-                              <span className="text-[11px] text-slate-400 mt-0.5 capitalize">
-                                {opcao.subtitulo}
-                              </span>
-                            </span>
-                            <span
-                              className={cn(
-                                "w-5 h-5 rounded-full border flex items-center justify-center shrink-0",
-                                isActive ? "border-[#009CDE]" : "border-slate-300"
-                              )}
-                            >
-                              <span
-                                className={cn(
-                                  "w-2.5 h-2.5 rounded-full",
-                                  isActive ? "bg-[#009CDE]" : "bg-transparent"
-                                )}
-                              />
-                            </span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                    {agendamentoErrors.opcao && (
-                      <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">deve selecionar uma opção</span>
-                    )}
-                  </div>
-
-                  {/* Horários — grade real, buscada em /api/crm/disponibilidade
-                      (rota interna que consulta o CRM) assim que o lead clicou
-                      em "Continuar simulação", antes de chegar nesta tela. */}
-                  {(agendamentoOpcao === 'hoje' || agendamentoOpcao === 'amanha') && (
+                    {/* Input Nome */}
                     <div className="flex flex-col gap-2">
                       <label className="text-xs font-bold tracking-widest text-slate-400 uppercase">
-                        Horários disponíveis
+                        Seu nome completo
                       </label>
+                      <div className="relative flex items-center">
+                        <User className="absolute left-4 w-5 h-5 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Digite seu nome..."
+                          value={name}
+                          disabled={submitStatus === 'loading'}
+                          onChange={(e) => {
+                            setName(e.target.value)
+                            if (errors.name) setErrors(prev => ({ ...prev, name: false }))
+                          }}
+                          className={cn(
+                            "w-full bg-slate-50 border focus:bg-white rounded-2xl py-3.5 pl-12 pr-4 text-sm outline-none transition-all disabled:opacity-70 disabled:cursor-not-allowed",
+                            errors.name
+                              ? "border-red-500 focus:border-red-500"
+                              : "border-slate-100 focus:border-[#009CDE]"
+                          )}
+                          required
+                        />
+                      </div>
+                      {errors.name && (
+                        <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">deve preencher os campos primeiro</span>
+                      )}
+                    </div>
 
-                      {horariosStatus === 'loading' && !slotsSelecionados ? (
-                        <div className="grid grid-cols-3 gap-2.5">
-                          {[0, 1, 2, 3, 4].map((i) => (
-                            <div key={i} className="h-[42px] rounded-xl bg-slate-100 animate-pulse" />
-                          ))}
-                        </div>
-                      ) : horariosStatus === 'error' ? (
-                        <div className="flex flex-col items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
-                          <span className="text-xs text-red-600 font-medium">
-                            Não foi possível carregar os horários agora.
-                          </span>
-                          <button
-                            type="button"
-                            onClick={carregarDisponibilidade}
-                            className="inline-flex items-center gap-1.5 text-xs font-bold text-red-600 hover:text-red-700 cursor-pointer"
-                          >
-                            <RefreshCw className="w-3.5 h-3.5" />
-                            Tentar novamente
-                          </button>
-                        </div>
-                      ) : slotsSelecionados && slotsSelecionados.every((slot) => !slot.available) ? (
-                        <span className="text-xs text-slate-500">
-                          Nenhum horário disponível {agendamentoOpcao === 'hoje' ? 'para hoje' : 'para amanhã'}. Tente a outra data ou informe sua disponibilidade.
-                        </span>
-                      ) : (
-                        <div className="grid grid-cols-3 gap-2.5">
-                          {(slotsSelecionados ?? []).map((slot) => {
-                            const isActive = agendamentoHorario === slot.time
+                    {/* Input Telefone */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                        Seu WhatsApp
+                      </label>
+                      <div className="relative flex items-center">
+                        <Phone className="absolute left-4 w-5 h-5 text-slate-400" />
+                        <input
+                          type="tel"
+                          placeholder="(00) 00000-0000"
+                          value={phone}
+                          disabled={submitStatus === 'loading'}
+                          onChange={handlePhoneChange}
+                          className={cn(
+                            "w-full bg-slate-50 border focus:bg-white rounded-2xl py-3.5 pl-12 pr-4 text-sm outline-none transition-all disabled:opacity-70 disabled:cursor-not-allowed",
+                            errors.phone
+                              ? "border-red-500 focus:border-red-500"
+                              : "border-slate-100 focus:border-[#009CDE]"
+                          )}
+                          required
+                        />
+                      </div>
+                      {errors.phone && (
+                        <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">deve preencher os campos primeiro</span>
+                      )}
+                    </div>
+
+                    {perguntaExtraTipo === 'motivacao' ? (
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                          <span>O que motivou seu interesse pelo consórcio?</span>
+                        </label>
+                        <textarea
+                          placeholder="Descreva aqui..."
+                          value={motivoInteresse}
+                          disabled={submitStatus === 'loading'}
+                          onChange={(e) => {
+                            setMotivoInteresse(e.target.value)
+                            if (errors.motivoInteresse) {
+                              setErrors(prev => ({ ...prev, motivoInteresse: false }))
+                            }
+                          }}
+                          className={cn(
+                            "w-full bg-slate-50 border focus:bg-white rounded-2xl py-3.5 px-4 text-sm outline-none transition-all disabled:opacity-70 disabled:cursor-not-allowed min-h-[120px] resize-none",
+                            errors.motivoInteresse
+                              ? "border-red-500 focus:border-red-500"
+                              : "border-slate-100 focus:border-[#009CDE]"
+                          )}
+                          required
+                        />
+                        {errors.motivoInteresse && (
+                          <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">deve preencher os campos primeiro</span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                          <span>Para quando você pretende contratar o consórcio?</span>
+                        </label>
+                        <div className="grid grid-cols-1 gap-3">
+                          {(
+                            [
+                              'compra imediata',
+                              'curto prazo (até 30 dias)',
+                              'médio prazo (até 3 meses)',
+                              'apenas pesquisando por enquanto',
+                            ] as const
+                          ).map((opcao) => {
+                            const isActive = prazoContratacao === opcao
                             return (
                               <button
-                                key={slot.time}
+                                key={opcao}
                                 type="button"
-                                disabled={submitStatus === 'loading' || !slot.available}
-                                title={!slot.available ? 'Horário já ocupado' : undefined}
+                                disabled={submitStatus === 'loading'}
                                 onClick={() => {
-                                  setAgendamentoHorario(slot.time)
-                                  if (agendamentoErrors.horario) {
-                                    setAgendamentoErrors(prev => ({ ...prev, horario: false }))
+                                  setPrazoContratacao(opcao)
+                                  if (errors.prazoContratacao) {
+                                    setErrors(prev => ({ ...prev, prazoContratacao: false }))
                                   }
                                 }}
                                 className={cn(
-                                  "py-3 rounded-xl border text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer",
+                                  "w-full bg-white border rounded-2xl px-4 py-4 flex items-center justify-between text-left transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer",
                                   isActive
-                                    ? "border-[#009CDE] bg-slate-50/50 text-[#009CDE] shadow-sm shadow-[#009CDE]/10"
-                                    : "border-slate-100 text-slate-500 bg-white hover:border-slate-200"
+                                    ? "border-[#009CDE] shadow-sm shadow-[#009CDE]/10"
+                                    : "border-slate-100 hover:border-slate-200"
                                 )}
                               >
-                                {slot.time}
+                                <span className="text-sm font-semibold text-[#313335] leading-snug">
+                                  {opcao}
+                                </span>
+                                <span
+                                  className={cn(
+                                    "w-5 h-5 rounded-full border flex items-center justify-center shrink-0",
+                                    isActive ? "border-[#009CDE]" : "border-slate-300"
+                                  )}
+                                >
+                                  <span
+                                    className={cn(
+                                      "w-2.5 h-2.5 rounded-full",
+                                      isActive ? "bg-[#009CDE]" : "bg-transparent"
+                                    )}
+                                  />
+                                </span>
                               </button>
                             )
                           })}
                         </div>
-                      )}
+                        {errors.prazoContratacao && (
+                          <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">deve selecionar uma opção</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
-                      {agendamentoErrors.slotIndisponivel && (
-                        <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">
-                          esse horário acabou de ser reservado por outra pessoa — escolha outro
-                        </span>
-                      )}
-                      {agendamentoErrors.horario && !agendamentoErrors.slotIndisponivel && (
-                        <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">deve escolher um horário</span>
-                      )}
+                  {/* Botão só avança pro agendamento — não cria nada no CRM
+                  ainda. O negócio de verdade só nasce daqui 5 minutos (se o
+                  lead não terminar sozinho antes) ou no clique de "Ver
+                  simulação completa", o que vier primeiro — ver
+                  criarNegocioSeNecessario. */}
+                  <div className="pt-6 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={avancarParaAgendamento}
+                      className="w-full bg-[#009CDE] hover:bg-[#008cc7] text-white font-bold text-sm py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 shadow-md shadow-[#009CDE]/10 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                    >
+                      Continuar simulação
+                      <ArrowRight className="w-4.5 h-4.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* VERSO B.2: Agendamento — gatilho real do webhook */}
+                <div ref={innerBackRef} className="card-back flex flex-col justify-between gap-6">
+                  <div className="flex flex-col gap-6">
+                    {/* Header */}
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setStep2Flipped(false)}
+                        disabled={submitStatus === 'loading'}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-[#009CDE] transition-colors mb-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                        Voltar e revisar meus dados
+                      </button>
+                      <h3 className="text-xl font-extrabold text-[#313335] tracking-tight">Vamos agendar sua conversa?</h3>
+                      <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                        Hoje é {formatarDataExtenso(new Date())}. Escolha a melhor forma de conversarmos sobre sua simulação.
+                      </p>
                     </div>
-                  )}
 
-                  {/* Disponibilidade em texto livre */}
-                  {agendamentoOpcao === 'outro' && (
+                    {/* 3 opções de agendamento */}
                     <div className="flex flex-col gap-2">
                       <label className="text-xs font-bold tracking-widest text-slate-400 uppercase">
-                        Quando você estará disponível?
+                        Quando podemos falar com você?
                       </label>
-                      <textarea
-                        placeholder="Ex: terça ou quinta à tarde, depois das 15h..."
-                        value={agendamentoDisponibilidade}
-                        disabled={submitStatus === 'loading'}
-                        onChange={(e) => {
-                          setAgendamentoDisponibilidade(e.target.value)
-                          if (agendamentoErrors.disponibilidade) {
-                            setAgendamentoErrors(prev => ({ ...prev, disponibilidade: false }))
-                          }
-                        }}
-                        className={cn(
-                          "w-full bg-slate-50 border focus:bg-white rounded-2xl py-3.5 px-4 text-sm outline-none transition-all disabled:opacity-70 disabled:cursor-not-allowed min-h-[100px] resize-none",
-                          agendamentoErrors.disponibilidade
-                            ? "border-red-500 focus:border-red-500"
-                            : "border-slate-100 focus:border-[#009CDE]"
-                        )}
-                        required
-                      />
-                      {agendamentoErrors.disponibilidade && (
-                        <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">conte pra gente quando você estará disponível</span>
+                      <div className="grid grid-cols-1 gap-3">
+                        {(
+                          [
+                            {
+                              id: 'hoje' as const,
+                              titulo: 'Agendar reunião para hoje',
+                              subtitulo: formatarDataExtenso(new Date()),
+                            },
+                            {
+                              id: 'amanha' as const,
+                              titulo: 'Agendar para amanhã',
+                              subtitulo: formatarDataExtenso(amanhaDate),
+                            },
+                            {
+                              id: 'outro' as const,
+                              titulo: 'Prefiro informar minha disponibilidade',
+                              subtitulo: 'Você escreve o melhor dia e horário',
+                            },
+                          ]
+                        ).map((opcao) => {
+                          const isActive = agendamentoOpcao === opcao.id
+                          return (
+                            <button
+                              key={opcao.id}
+                              type="button"
+                              disabled={submitStatus === 'loading'}
+                              onClick={() => {
+                                setAgendamentoOpcao(opcao.id)
+                                setAgendamentoErrors({})
+                                if (opcao.id !== agendamentoOpcao) {
+                                  setAgendamentoHorario('')
+                                }
+                              }}
+                              className={cn(
+                                "w-full bg-white border rounded-2xl px-4 py-4 flex items-center justify-between text-left transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer",
+                                isActive
+                                  ? "border-[#009CDE] shadow-sm shadow-[#009CDE]/10"
+                                  : "border-slate-100 hover:border-slate-200"
+                              )}
+                            >
+                              <span className="flex flex-col">
+                                <span className="text-sm font-semibold text-[#313335] leading-snug">
+                                  {opcao.titulo}
+                                </span>
+                                <span className="text-[11px] text-slate-400 mt-0.5 capitalize">
+                                  {opcao.subtitulo}
+                                </span>
+                              </span>
+                              <span
+                                className={cn(
+                                  "w-5 h-5 rounded-full border flex items-center justify-center shrink-0",
+                                  isActive ? "border-[#009CDE]" : "border-slate-300"
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    "w-2.5 h-2.5 rounded-full",
+                                    isActive ? "bg-[#009CDE]" : "bg-transparent"
+                                  )}
+                                />
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                      {agendamentoErrors.opcao && (
+                        <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">deve selecionar uma opção</span>
                       )}
                     </div>
-                  )}
-                </div>
 
-                {/* Botão de Envio para Webhook — gatilho real da simulação */}
-                <div className="pt-6 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={enviarSimulacao}
-                    disabled={submitStatus === 'loading'}
-                    className="w-full bg-[#009CDE] hover:bg-[#008cc7] disabled:bg-[#008cc7]/80 text-white font-bold text-sm py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 shadow-md shadow-[#009CDE]/10 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer disabled:translate-y-0 disabled:cursor-not-allowed"
-                  >
-                    {submitStatus === 'loading' ? (
-                      <>
-                        <Loader2 className="w-4.5 h-4.5 animate-spin" />
-                        Enviando simulação...
-                      </>
-                    ) : (
-                      <>
-                        Ver simulação completa
-                        <ArrowRight className="w-4.5 h-4.5" />
-                      </>
+                    {/* Horários — grade real, buscada em /api/crm/disponibilidade
+                      (rota interna que consulta o CRM) assim que o lead clicou
+                      em "Continuar simulação", antes de chegar nesta tela. */}
+                    {(agendamentoOpcao === 'hoje' || agendamentoOpcao === 'amanha') && (
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                          Horários disponíveis
+                        </label>
+
+                        {horariosStatus === 'loading' && !slotsSelecionados ? (
+                          <div className="grid grid-cols-3 gap-2.5">
+                            {[0, 1, 2, 3, 4].map((i) => (
+                              <div key={i} className="h-[42px] rounded-xl bg-slate-100 animate-pulse" />
+                            ))}
+                          </div>
+                        ) : horariosStatus === 'error' ? (
+                          <div className="flex flex-col items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                            <span className="text-xs text-red-600 font-medium">
+                              Não foi possível carregar os horários agora.
+                            </span>
+                            <button
+                              type="button"
+                              onClick={carregarDisponibilidade}
+                              className="inline-flex items-center gap-1.5 text-xs font-bold text-red-600 hover:text-red-700 cursor-pointer"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" />
+                              Tentar novamente
+                            </button>
+                          </div>
+                        ) : slotsSelecionados && slotsSelecionados.every((slot) => !slot.available) ? (
+                          <span className="text-xs text-slate-500">
+                            Nenhum horário disponível {agendamentoOpcao === 'hoje' ? 'para hoje' : 'para amanhã'}. Tente a outra data ou informe sua disponibilidade.
+                          </span>
+                        ) : (
+                          <div className="grid grid-cols-3 gap-2.5">
+                            {(slotsSelecionados ?? []).map((slot) => {
+                              const isActive = agendamentoHorario === slot.time
+                              return (
+                                <button
+                                  key={slot.time}
+                                  type="button"
+                                  disabled={submitStatus === 'loading' || !slot.available}
+                                  title={!slot.available ? 'Horário já ocupado' : undefined}
+                                  onClick={() => {
+                                    setAgendamentoHorario(slot.time)
+                                    if (agendamentoErrors.horario) {
+                                      setAgendamentoErrors(prev => ({ ...prev, horario: false }))
+                                    }
+                                  }}
+                                  className={cn(
+                                    "py-3 rounded-xl border text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer",
+                                    isActive
+                                      ? "border-[#009CDE] bg-slate-50/50 text-[#009CDE] shadow-sm shadow-[#009CDE]/10"
+                                      : "border-slate-100 text-slate-500 bg-white hover:border-slate-200"
+                                  )}
+                                >
+                                  {slot.time}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
+
+                        {agendamentoErrors.slotIndisponivel && (
+                          <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">
+                            esse horário acabou de ser reservado por outra pessoa — escolha outro
+                          </span>
+                        )}
+                        {agendamentoErrors.horario && !agendamentoErrors.slotIndisponivel && (
+                          <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">deve escolher um horário</span>
+                        )}
+                      </div>
                     )}
-                  </button>
+
+                    {/* Disponibilidade em texto livre */}
+                    {agendamentoOpcao === 'outro' && (
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-bold tracking-widest text-slate-400 uppercase">
+                          Quando você estará disponível?
+                        </label>
+                        <textarea
+                          placeholder="Ex: terça ou quinta à tarde, depois das 15h..."
+                          value={agendamentoDisponibilidade}
+                          disabled={submitStatus === 'loading'}
+                          onChange={(e) => {
+                            setAgendamentoDisponibilidade(e.target.value)
+                            if (agendamentoErrors.disponibilidade) {
+                              setAgendamentoErrors(prev => ({ ...prev, disponibilidade: false }))
+                            }
+                          }}
+                          className={cn(
+                            "w-full bg-slate-50 border focus:bg-white rounded-2xl py-3.5 px-4 text-sm outline-none transition-all disabled:opacity-70 disabled:cursor-not-allowed min-h-[100px] resize-none",
+                            agendamentoErrors.disponibilidade
+                              ? "border-red-500 focus:border-red-500"
+                              : "border-slate-100 focus:border-[#009CDE]"
+                          )}
+                          required
+                        />
+                        {agendamentoErrors.disponibilidade && (
+                          <span className="text-red-500 text-[10px] font-semibold px-1 mt-0.5">conte pra gente quando você estará disponível</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Botão de Envio para Webhook — gatilho real da simulação */}
+                  <div className="pt-6 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={enviarSimulacao}
+                      disabled={submitStatus === 'loading'}
+                      className="w-full bg-[#009CDE] hover:bg-[#008cc7] disabled:bg-[#008cc7]/80 text-white font-bold text-sm py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 shadow-md shadow-[#009CDE]/10 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer disabled:translate-y-0 disabled:cursor-not-allowed"
+                    >
+                      {submitStatus === 'loading' ? (
+                        <>
+                          <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                          Enviando simulação...
+                        </>
+                      ) : (
+                        <>
+                          Ver simulação completa
+                          <ArrowRight className="w-4.5 h-4.5" />
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
 
               </div>
             </div>
