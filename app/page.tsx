@@ -546,7 +546,7 @@ export default function Page() {
             />
           </a>
           <nav className="main-nav" aria-label="Menu principal">
-            <a href="#cotas-contempladas" className="nav-link nav-link-highlight">Consultar Cotas Contempladas</a>
+            <a href="#cotas-contempladas" className="nav-link nav-link-highlight" onClick={() => fpixel.event('ViewContent', { content_name: 'Nav - Consultar Cotas Contempladas', content_category: 'Cotas Contempladas' })}>Consultar Cotas Contempladas</a>
             <div className="nav-item">
               <a href="#areas" className="nav-link">Soluções
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M6 9l6 6 6-6" /></svg>
@@ -558,7 +558,7 @@ export default function Page() {
             <a href="#faq" className="nav-link">FAQ</a>
           </nav>
           <div className="header-actions">
-            <a href="#simulador" className="btn btn-secondary btn-sm">Simular Consórcio</a>
+            <a href="#simulador" className="btn btn-secondary btn-sm" onClick={() => fpixel.event('ViewContent', { content_name: 'Nav - Simular Consórcio' })}>Simular Consórcio</a>
             <button
               type="button"
               className="mobile-toggle"
@@ -624,7 +624,7 @@ export default function Page() {
 
               {/* Botões de Ação Principais */}
               <div className="flex flex-wrap items-center gap-4 pt-4">
-                <a href="#simulador" className="bg-[#009CDE] hover:bg-[#008cc7] text-white font-bold text-sm px-8 py-4 rounded-xl shadow-lg shadow-[#009CDE]/20 active:scale-95 transition-all flex items-center gap-2">
+                <a href="#simulador" onClick={() => fpixel.event('ViewContent', { content_name: 'Hero - Simular Consórcio' })} className="bg-[#009CDE] hover:bg-[#008cc7] text-white font-bold text-sm px-8 py-4 rounded-xl shadow-lg shadow-[#009CDE]/20 active:scale-95 transition-all flex items-center gap-2">
                   Simular Consórcio
                   <ChevronRight className="w-4 h-4" />
                 </a>
@@ -869,7 +869,7 @@ export default function Page() {
                 </div>
 
                 <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out delay-75">
-                  <a href="#simulador" className="inline-flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors group/btn">
+                  <a href="#simulador" onClick={() => fpixel.event('ViewContent', { content_name: 'Card - Simular Crédito Agro', content_category: 'Máquinas Agrícolas' })} className="inline-flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors group/btn">
                     Simular Crédito Agro
                     <ArrowRight className="w-4 h-4 transform group-hover/btn:translate-x-1 transition-transform" />
                   </a>
@@ -900,7 +900,7 @@ export default function Page() {
                 </div>
 
                 <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out delay-75">
-                  <a href="#simulador" className="inline-flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors group/btn">
+                  <a href="#simulador" onClick={() => fpixel.event('ViewContent', { content_name: 'Card - Simular Crédito Imobiliário', content_category: 'Imóveis' })} className="inline-flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors group/btn">
                     Simular Crédito Imobiliário
                     <ArrowRight className="w-4 h-4 transform group-hover/btn:translate-x-1 transition-transform" />
                   </a>
@@ -934,7 +934,7 @@ export default function Page() {
                 </div>
 
                 <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out delay-75">
-                  <a href="#simulador" className="inline-flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors group/btn">
+                  <a href="#simulador" onClick={() => fpixel.event('ViewContent', { content_name: 'Card - Simular Crédito Auto', content_category: 'Automóvel' })} className="inline-flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors group/btn">
                     Simular Crédito Auto
                     <ArrowRight className="w-4 h-4 transform group-hover/btn:translate-x-1 transition-transform" />
                   </a>
@@ -965,7 +965,7 @@ export default function Page() {
                 </div>
 
                 <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out delay-75">
-                  <a href="#simulador" className="inline-flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors group/btn">
+                  <a href="#simulador" onClick={() => fpixel.event('ViewContent', { content_name: 'Card - Simular Crédito Pesados', content_category: 'Caminhão' })} className="inline-flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors group/btn">
                     Simular Crédito Pesados
                     <ArrowRight className="w-4 h-4 transform group-hover/btn:translate-x-1 transition-transform" />
                   </a>
@@ -1004,6 +1004,7 @@ export default function Page() {
               href="https://cartascontempladas.reoboteconsorcios.com.br/"
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => fpixel.event('ViewContent', { content_name: 'CTA - Consultar Cotas Contempladas', content_category: 'Cotas Contempladas' })}
               className="btn btn-primary"
             >
               Consultar cotas disponíveis
@@ -1041,7 +1042,7 @@ export default function Page() {
               Não vendemos consórcios. <strong>Entregamos possibilidades</strong> de realizar grandes conquistas, com liberdade, planejamento e suporte dedicado.
             </p>
 
-            <a href="https://wa.me/5567981156454" target="_blank" rel="noopener noreferrer" className="btn-cta">
+            <a href="https://wa.me/5567981156454" target="_blank" rel="noopener noreferrer" onClick={() => fpixel.event('Lead', { content_name: 'Quem Somos - Falar com Especialista' })} className="btn-cta">
               Falar com um especialista
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -1166,8 +1167,8 @@ export default function Page() {
             <div className="footer-col">
               <h5>Contato</h5>
               <ul>
-                <li><a href="tel:+5567981156454">(67) 98115-6454</a></li>
-                <li><a href="mailto:contato@reobote.com.br">contato@reoboteconsorcios.com.br</a></li>
+                <li><a href="tel:+5567981156454" onClick={() => fpixel.event('Contact', { content_name: 'Rodapé - Telefone' })}>(67) 98115-6454</a></li>
+                <li><a href="mailto:contato@reobote.com.br" onClick={() => fpixel.event('Contact', { content_name: 'Rodapé - Email' })}>contato@reoboteconsorcios.com.br</a></li>
                 <li><a href="#faq">Ajuda e FAQ</a></li>
               </ul>
             </div>
@@ -1187,6 +1188,7 @@ export default function Page() {
         href="https://wa.me/5567981156454"
         target="_blank"
         rel="noopener"
+        onClick={() => fpixel.event('Lead', { content_name: 'Botão Flutuante WhatsApp' })}
         className="wa-float"
         aria-label="Contato WhatsApp"
       >

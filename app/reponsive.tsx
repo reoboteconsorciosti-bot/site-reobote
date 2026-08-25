@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { X } from 'lucide-react'
+import * as fpixel from '@/lib/fpixel'
 
 type MobileMenuProps = {
   open: boolean
@@ -106,7 +107,10 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
             <div className="px-5 pb-6">
               <a
                 href="#simulador"
-                onClick={onClose}
+                onClick={() => {
+                  fpixel.event('ViewContent', { content_name: 'Menu Mobile - Simular Consórcio' })
+                  onClose()
+                }}
                 className="mb-3 block w-full rounded-2xl bg-blue-100 hover:bg-blue-500 text-white font-bold text-sm px-6 py-4 text-center text-sm font-extrabold text-white"
               >
                 Simular Consórcio
@@ -115,7 +119,10 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
                 href="https://wa.me/5567981156454"
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={onClose}
+                onClick={() => {
+                  fpixel.event('Lead', { content_name: 'Menu Mobile - WhatsApp' })
+                  onClose()
+                }}
                 className="block w-full rounded-2xl bg-[#009CDE] px-6 py-4 text-center text-sm font-extrabold text-white"
               >
                 Falar no WhatsApp

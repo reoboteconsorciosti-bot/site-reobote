@@ -439,6 +439,15 @@ export function Simulator() {
   const avancarParaAgendamento = () => {
     if (!validateForm()) return
 
+    // FB Pixel Event — primeiro momento em que o lead entrega dado de
+    // contato de verdade (nome + telefone), antes mesmo do agendamento.
+    fpixel.event('CompleteRegistration', {
+      content_name: 'Dados Pessoais Simulador',
+      content_category: activeSegment.label,
+      value,
+      currency: 'BRL',
+    })
+
     setAgendamentoErrors({})
     setStep2Flipped(true)
     carregarDisponibilidade()
@@ -1244,6 +1253,7 @@ export function Simulator() {
                       href={linkWhatsappGerado}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => fpixel.event('Contact', { content_name: 'Pós-Simulação WhatsApp' })}
                       className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm py-3.5 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-500/15 hover:-translate-y-0.5 cursor-pointer"
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
