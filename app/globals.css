@@ -150,6 +150,36 @@ button {
   transition-delay: .4s;
 }
 
+/* ---------- Hero background carousel ---------- */
+/* Crossfade entre slides + zoom cinematográfico sutil e contínuo. O zoom roda
+   independente da troca de opacidade (infinite/alternate) para nunca "pular"
+   de escala quando um slide volta a ficar visível. */
+.hero-carousel-slide {
+  transition-property: opacity;
+  transition-timing-function: ease-in-out;
+  animation-name: heroCarouselZoom;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+  will-change: opacity, transform;
+}
+
+@keyframes heroCarouselZoom {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.03);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-carousel-slide {
+    animation: none;
+    transition-duration: .3s !important;
+  }
+}
+
 /* ---------- Buttons ---------- */
 .btn {
   display: inline-flex;
@@ -331,6 +361,27 @@ header.scrolled .nav-link {
 header.scrolled .nav-link:hover {
   color: var(--blue-deep);
   background: rgba(13, 171, 236, 0.06);
+}
+
+/* Item de destaque no nav (ex: "Consultar Cotas Contempladas") — mesma
+   estrutura do .nav-link, com cor de acento para chamar mais atenção. */
+.nav-link-highlight {
+  color: #009CDE;
+  font-weight: 700;
+}
+
+.nav-link-highlight:hover {
+  color: #009CDE;
+  background: rgba(0, 156, 222, 0.16);
+}
+
+header.scrolled .nav-link-highlight {
+  color: #009CDE;
+}
+
+header.scrolled .nav-link-highlight:hover {
+  color: #007fb3;
+  background: rgba(0, 156, 222, 0.1);
 }
 
 header:not(.scrolled) .btn-secondary {

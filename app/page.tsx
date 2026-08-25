@@ -4,6 +4,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import Script from 'next/script'
 import { Simulator } from '@/components/site/simulator'
 import { Testimonials } from '@/components/site/testimonials'
+import { HeroBackgroundCarousel } from '@/components/site/hero-background-carousel'
+import { CardImageCrossfade } from '@/components/site/card-image-crossfade'
 import { ChevronDown, Tractor, Home, Car, Truck, ArrowRight, Wheat, TrendingUp, ChevronRight, MessageCircle, ShieldCheck, Eye, Users, Award } from 'lucide-react'
 import { MobileMenu } from './reponsive'
 import * as fpixel from '@/lib/fpixel'
@@ -14,6 +16,17 @@ function SitePreloader() {
   // Esconde a logo imediatamente para evitar flash (logo visível no header antes da animação).
   // Limpa transforms residuais que podem surgir em hot-reloads no dev.
   useLayoutEffect(() => {
+    // Celular e tablet (< 1024px, breakpoint `lg`): a animação de abertura
+    // inteira é pulada, não só o voo do clone — o overlay #preloader é
+    // `position: fixed; inset:0` via CSS puro, então some aqui mesmo,
+    // antes do primeiro paint, pra nunca bloquear a tela. A logo do
+    // header nem chega a ser escondida: fica fixa e visível desde já.
+    if (window.matchMedia('(max-width: 1023px)').matches) {
+      const preloader = document.getElementById('preloader')
+      if (preloader) preloader.style.display = 'none'
+      return
+    }
+
     const header = document.getElementById('siteHeader')
     const logo = document.getElementById('logo-img') as HTMLImageElement | null
     const mainNav = document.querySelector('#siteHeader .main-nav') as HTMLElement | null
@@ -31,6 +44,11 @@ function SitePreloader() {
   }, [])
 
   useEffect(() => {
+    // Celular/tablet já foi resolvido de forma síncrona no useLayoutEffect
+    // acima (overlay escondido antes do primeiro paint) — nada a fazer
+    // aqui, nem vale a pena escutar 'load' ou armar o safety timeout.
+    if (window.matchMedia('(max-width: 1023px)').matches) return
+
     const cleanup = () => {
       const logoEl = document.getElementById('logo-img') as HTMLImageElement | null
       const header = document.getElementById('siteHeader')
@@ -364,6 +382,9 @@ const unitsData = {
 export default function Page() {
   // Estados para a funcionalidade do mapa
   const [selectedState, setSelectedState] = useState<string>('')
+  // Pin do mapa tocado no mobile (onde não existe :hover) — controla a
+  // exibição do tooltip "Consórcio Ativo" por toque em vez de passar o mouse.
+  const [activePinUf, setActivePinUf] = useState<string | null>(null)
   const [selectedCity, setSelectedCity] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [tooltip, setTooltip] = useState({ show: false, x: 0, y: 0, text: '' })
@@ -398,6 +419,36 @@ export default function Page() {
     checkReveal()
 
     return () => window.removeEventListener('scroll', checkReveal)
+  }, [])
+
+  // Revelação automática dos cards de categoria (#areas) só no celular.
+  // No desktop a informação aparece com :hover (mouse sobre o card); no
+  // celular não existe hover, então antes era preciso tocar e segurar
+  // (:active) para o texto aparecer. Aqui, ao rolar a tela, cada card
+  // "grudado" (position: sticky, ver .card-sticky) que estiver visível
+  // ganha a classe `is-active`, que os elementos do card escutam via
+  // `group-[.is-active]:...` — o mesmo fade suave do hover, só que
+  // disparado pelo scroll em vez do mouse.
+  useEffect(() => {
+    const cards = document.querySelectorAll('.card-sticky')
+    if (cards.length === 0) return
+
+    const isMobile = () => window.matchMedia('(max-width: 767px)').matches
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          entry.target.classList.toggle('is-active', isMobile() && entry.isIntersecting)
+        })
+      },
+      // rootMargin recorta a área de detecção para perto de onde o card fica
+      // "grudado" (top: 15vh), evitando que ele ative cedo demais ao entrar
+      // por baixo da tela ou continue ativo depois de já ter saído por cima.
+      { threshold: 0.5, rootMargin: '-15% 0px -35% 0px' }
+    )
+
+    cards.forEach((card) => observer.observe(card))
+    return () => observer.disconnect()
   }, [])
 
 
@@ -495,6 +546,7 @@ export default function Page() {
             />
           </a>
           <nav className="main-nav" aria-label="Menu principal">
+            <a href="#cotas-contempladas" className="nav-link nav-link-highlight">Consultar Cotas Contempladas</a>
             <div className="nav-item">
               <a href="#areas" className="nav-link">Soluções
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M6 9l6 6 6-6" /></svg>
@@ -524,35 +576,35 @@ export default function Page() {
 
       <main id="topo">
         {/* HERO SECTION PRINCIPAL */}
-        <section className="relative min-h-screen bg-[#0d172e] text-white overflow-hidden flex flex-col justify-between pt-28 pb-12">
+        <section className="relative min-h-[600px] md:min-h-screen bg-[#0d172e] text-white overflow-hidden flex flex-col justify-between pt-28 pb-12">
 
-          {/* ELEMENTO DE FUNDO: Imagem dos Donos */}
-          <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/images/DSC_5156.jpg.jpeg"
-              alt="Fundadores Reobote"
-              className="absolute bottom-0 right-1/2 w-full max-w-[420px] translate-x-1/2 object-contain opacity-45 select-none pointer-events-none translate-y-24 sm:max-w-[560px] sm:opacity-55 sm:translate-y-32 md:right-0 md:max-w-[700px] md:translate-x-0 md:opacity-65 md:translate-y-40 lg:max-w-[850px] lg:translate-y-52 z-10 h-auto"
-            />
-          </div>
+          {/* ELEMENTO DE FUNDO: Carrossel cinematográfico de imagens da campanha */}
+          <HeroBackgroundCarousel />
+
+          {/* OVERLAY: camada independente acima do carrossel e abaixo do conteúdo.
+              Garante legibilidade do texto e unifica o tom (escuro/azulado) entre
+              fotos com iluminação/exposição diferentes entre si. */}
+          <div className="absolute inset-0 z-10 pointer-events-none bg-[#0d172e]/12" />
+          <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-r from-[#0d172e]/75 via-[#0d172e]/35 via-50% to-transparent" />
+          <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-t from-[#0d172e]/25 via-transparent to-transparent" />
 
           {/* CONTEÚDO DA PÁGINA */}
-          <div className="max-w-7xl w-full mx-auto px-6 relative z-20 my-auto">
+          <div className="max-w-7xl w-full mx-auto px-6 relative z-20 mt-20 mb-auto sm:my-auto">
 
             {/* COLUNA DA ESQUERDA: Textos e Chamadas */}
-            <div className="max-w-2xl lg:max-w-3xl space-y-6 text-left">
+            <div className="max-w-xl lg:max-w-2xl space-y-6 text-left">
               {/* Tag Superior */}
 
 
               {/* Título de Impacto */}
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1]">
-                O consórcio inteligente para conquistar <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 font-black">patrimônio</span> com planejamento.
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] [text-shadow:0_2px_20px_rgba(0,0,0,0.55)]">
+                O consórcio inteligente para conquistar <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 font-black text-[0.92em] [text-shadow:none] drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">patrimônio</span> com planejamento.
               </h1>
 
 
 
-              {/* Tags de Categorias Rápidas */}
-              <div className="flex flex-wrap gap-2.5 pt-2">
+              {/* Tags de Categorias Rápidas — ocultas no celular para reduzir a altura do Hero */}
+              <div className="hidden sm:flex flex-wrap gap-2.5 pt-2">
                 <span className="bg-white/5 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 text-slate-200">
                   <Home className="w-3.5 h-3.5 text-blue-400" /> Imóveis
                 </span>
@@ -582,8 +634,8 @@ export default function Page() {
                 </a>
               </div>
 
-              {/* Prova Social Inferior */}
-              <div className="flex items-center gap-3 pt-6 border-t border-white/5 max-w-sm">
+              {/* Prova Social Inferior — oculta no celular para reduzir a altura do Hero */}
+              <div className="hidden sm:flex items-center gap-3 pt-6 border-t border-white/5 max-w-sm">
                 <div className="flex -space-x-2">
                   <div className="w-8 h-8 rounded-full bg-blue-500 border-2 border-[#0d172e] flex items-center justify-center text-[10px] font-bold">JZ</div>
                   <div className="w-8 h-8 rounded-full bg-slate-600 border-2 border-[#0d172e] flex items-center justify-center text-[10px] font-bold">GP</div>
@@ -711,7 +763,10 @@ export default function Page() {
 
               {/* LADO DIREITO: Container do Mapa com Pins Interativos */}
               <div className="lg:col-span-7 relative w-full aspect-[4/3] min-h-[320px] sm:min-h-[420px] max-w-[680px] mx-auto bg-slate-50/60 rounded-[2.5rem] border border-slate-100 p-3 sm:p-5 lg:p-6 flex items-center justify-center">
-                <div className="relative aspect-[353.845/367.766] w-full max-h-full flex items-center justify-center">
+                <div
+                  className="relative aspect-[353.845/367.766] w-full max-h-full flex items-center justify-center"
+                  onClick={() => setActivePinUf(null)}
+                >
 
                   {/* SVG do Mapa Oficial e Geograficamente Correto */}
                   <svg viewBox="0 0 353.845 367.766" preserveAspectRatio="xMidYMid meet" className="w-full h-full fill-slate-200 stroke-white stroke-[0.5] select-none">
@@ -746,21 +801,37 @@ export default function Page() {
                     </g>
                   </svg>
 
-                  {soldStatesData.map((state) => (
-                    <div key={state.uf} className="absolute group" style={{ top: state.top, left: state.left }}>
-                      <div className="relative flex items-center justify-center w-6 h-6 cursor-pointer">
-                        <span className="absolute inline-flex h-full w-full rounded-full bg-[#009CDE]/30 animate-ping opacity-75"></span>
-                        <div className="relative w-3.5 h-3.5 rounded-full bg-[#009CDE] border-2 border-white shadow-md flex items-center justify-center transition-transform duration-200 group-hover:scale-125">
-                          <div className="w-1 h-1 bg-white rounded-full"></div>
+                  {soldStatesData.map((state) => {
+                    const isActive = activePinUf === state.uf
+
+                    return (
+                      <div key={state.uf} className="absolute group" style={{ top: state.top, left: state.left }}>
+                        <div
+                          className="relative flex items-center justify-center w-6 h-6 cursor-pointer"
+                          onClick={(e) => {
+                            // Impede que o clique suba até o container do mapa e feche o
+                            // tooltip que acabamos de abrir (ver onClick no container).
+                            e.stopPropagation()
+                            setActivePinUf((prev) => (prev === state.uf ? null : state.uf))
+                          }}
+                        >
+                          <span className="absolute inline-flex h-full w-full rounded-full bg-[#009CDE]/30 animate-ping opacity-75"></span>
+                          <div className="relative w-3.5 h-3.5 rounded-full bg-[#009CDE] border-2 border-white shadow-md flex items-center justify-center transition-transform duration-200 group-hover:scale-125">
+                            <div className="w-1 h-1 bg-white rounded-full"></div>
+                          </div>
+                        </div>
+                        {/* Tooltip: aparece no hover (desktop) OU quando o pin é tocado
+                            (mobile, onde não existe :hover) via `isActive`. */}
+                        <div
+                          className={`absolute transition-all duration-200 bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white border border-slate-100 p-3.5 rounded-2xl shadow-xl w-52 z-30 ${isActive ? 'opacity-100' : 'opacity-0 pointer-events-none group-hover:opacity-100'
+                            }`}
+                        >
+                          <h4 className="font-extrabold text-[#0d172e] text-xs mb-0.5">{state.name}</h4>
+                          <div className="text-[10px] text-emerald-600 font-bold mb-1.5">✔ Consórcio Ativo</div>
                         </div>
                       </div>
-                      {/* Tooltip Hover */}
-                      <div className="absolute opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-200 bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white border border-slate-100 p-3.5 rounded-2xl shadow-xl w-52 z-30">
-                        <h4 className="font-extrabold text-[#0d172e] text-xs mb-0.5">{state.name}</h4>
-                        <div className="text-[10px] text-emerald-600 font-bold mb-1.5">✔ Consórcio Ativo</div>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
 
                 </div>
               </div>
@@ -786,7 +857,7 @@ export default function Page() {
                     Agronegócio
                   </span>
 
-                  <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 transition-all duration-500 ease-out">
+                  <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-3xl md:text-4xl font-black tracking-tight text-white">Máquinas Agrícolas</h3>
                       <Tractor className="w-7 h-7 text-amber-500" />
@@ -797,7 +868,7 @@ export default function Page() {
                   </div>
                 </div>
 
-                <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 transition-all duration-500 ease-out delay-75">
+                <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out delay-75">
                   <a href="#simulador" className="inline-flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors group/btn">
                     Simular Crédito Agro
                     <ArrowRight className="w-4 h-4 transform group-hover/btn:translate-x-1 transition-transform" />
@@ -809,7 +880,7 @@ export default function Page() {
             {/* CARD 2: IMOBILIÁRIO */}
             <section className="group active:scale-[0.99] card-sticky w-full h-[450px] md:h-[520px] rounded-[32px] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] border border-slate-800/80 relative transition-all duration-500 cursor-pointer">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/consorcio/casa.avif" alt="Imóvel" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
+              <img src="/images/consorcio/casa.avif" alt="Imóvel" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
               <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-slate-950/95 via-slate-950/70 to-transparent"></div>
 
               <div className="absolute inset-0 p-6 md:p-10 flex flex-col justify-between z-10 max-w-xl">
@@ -817,7 +888,7 @@ export default function Page() {
                   <span className="inline-block bg-blue-600/90 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-md mb-4">
                     Patrimônio
                   </span>
-                  <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 transition-all duration-500 ease-out">
+                  <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-3xl md:text-4xl font-black tracking-tight text-white">Consórcio Imobiliário</h3>
                       <Home className="w-7 h-7 text-blue-400" />
@@ -828,7 +899,7 @@ export default function Page() {
                   </div>
                 </div>
 
-                <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 transition-all duration-500 ease-out delay-75">
+                <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out delay-75">
                   <a href="#simulador" className="inline-flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors group/btn">
                     Simular Crédito Imobiliário
                     <ArrowRight className="w-4 h-4 transform group-hover/btn:translate-x-1 transition-transform" />
@@ -839,8 +910,11 @@ export default function Page() {
 
             {/* CARD 3: AUTOMÓVEL */}
             <section className="group active:scale-[0.99] card-sticky w-full h-[450px] md:h-[520px] rounded-[32px] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] border border-slate-800/80 relative transition-all duration-500 cursor-pointer">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/consorcio/haval-h6-hev-2023.jpg" alt="Automóvel" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
+              <CardImageCrossfade
+                images={['/images/consorcio/haval-h6-hev-2023.jpg', '/images/consorcio/Yamaha-R15-Marcelo-Barros-6.webp']}
+                alt="Automóvel"
+                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105"
+              />
               <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-slate-950/95 via-slate-950/70 to-transparent"></div>
 
               <div className="absolute inset-0 p-6 md:p-10 flex flex-col justify-between z-10 max-w-xl">
@@ -848,7 +922,7 @@ export default function Page() {
                   <span className="inline-block bg-indigo-600/90 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-md mb-4">
                     Conquista
                   </span>
-                  <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 transition-all duration-500 ease-out">
+                  <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-3xl md:text-4xl font-black tracking-tight text-white">Consórcio Automóvel</h3>
                       <Car className="w-7 h-7 text-indigo-400" />
@@ -859,7 +933,7 @@ export default function Page() {
                   </div>
                 </div>
 
-                <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 transition-all duration-500 ease-out delay-75">
+                <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out delay-75">
                   <a href="#simulador" className="inline-flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors group/btn">
                     Simular Crédito Auto
                     <ArrowRight className="w-4 h-4 transform group-hover/btn:translate-x-1 transition-transform" />
@@ -871,7 +945,7 @@ export default function Page() {
             {/* CARD 4: CAMINHÃO */}
             <section className="group active:scale-[0.99] card-sticky w-full h-[450px] md:h-[520px] rounded-[32px] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] border border-slate-800/80 relative transition-all duration-500 cursor-pointer">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/consorcio/post_thumbnail-92a23fafe8ad0a93598b44db4be69621.jpg" alt="Caminhão" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
+              <img src="/images/consorcio/post_thumbnail-92a23fafe8ad0a93598b44db4be69621.jpg" alt="Caminhão" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
               <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-slate-950/95 via-slate-950/70 to-transparent"></div>
 
               <div className="absolute inset-0 p-6 md:p-10 flex flex-col justify-between z-10 max-w-xl">
@@ -879,7 +953,7 @@ export default function Page() {
                   <span className="inline-block bg-amber-600/90 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-md mb-4">
                     Logística
                   </span>
-                  <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 transition-all duration-500 ease-out">
+                  <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-3xl md:text-4xl font-black tracking-tight text-white">Consórcio Caminhão</h3>
                       <Truck className="w-7 h-7 text-amber-400" />
@@ -890,7 +964,7 @@ export default function Page() {
                   </div>
                 </div>
 
-                <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 transition-all duration-500 ease-out delay-75">
+                <div className="opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-active:opacity-100 group-active:translate-y-0 group-[.is-active]:opacity-100 group-[.is-active]:translate-y-0 transition-all duration-500 ease-out delay-75">
                   <a href="#simulador" className="inline-flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors group/btn">
                     Simular Crédito Pesados
                     <ArrowRight className="w-4 h-4 transform group-hover/btn:translate-x-1 transition-transform" />
@@ -918,7 +992,7 @@ export default function Page() {
             {/* Texto */}
             <div className="cotas-cta-text">
               <p className="cotas-cta-label">Oportunidade exclusiva</p>
-              <h2 className="cotas-cta-title">Veja as cotas contempladas disponíveis</h2>
+              <h2 className="cotas-cta-title">Veja nosso banco de cotas contempladas disponíveis</h2>
               <p className="cotas-cta-desc">
                 Cartas de crédito já aprovadas esperando por você — compre um bem agora sem esperar sorteio.
               </p>
@@ -1063,7 +1137,7 @@ export default function Page() {
         <div className="container">
           <div className="footer-grid">
             <div>
-              <img src="/images/logo/LOGO-BRANCA.png" alt="Reobote Consórcios" className="footer-logo" />
+              <img src="/images/logo/LOGO-BRANCA.png" alt="Reobote Consórcios" loading="lazy" decoding="async" className="footer-logo" />
               <p>Planejamento financeiro inteligente para você conquistar seus objetivos sem juros, com consultoria humana de verdade.</p>
               <div className="footer-social">
                 <a href="https://www.instagram.com/reoboteconsorcios/" aria-label="Instagram">

@@ -9,6 +9,7 @@ type MobileMenuProps = {
 }
 
 const navLinks = [
+  { href: '#cotas-contempladas', label: 'Consultar Cotas Contempladas', highlight: true },
   { href: '#areas', label: 'Soluções' },
   { href: '#mapa', label: 'Vendas' },
   { href: '#depoimentos', label: 'Depoimentos' },
@@ -91,7 +92,11 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
                   key={link.href}
                   href={link.href}
                   onClick={onClose}
-                  className="rounded-xl px-4 py-3 text-[15px] font-semibold text-slate-900 hover:bg-slate-100 active:bg-slate-200"
+                  className={
+                    'highlight' in link && link.highlight
+                      ? 'rounded-xl px-4 py-3 text-[15px] font-bold text-[#009CDE] hover:bg-[#009CDE]/10 active:bg-[#009CDE]/15'
+                      : 'rounded-xl px-4 py-3 text-[15px] font-semibold text-slate-900 hover:bg-slate-100 active:bg-slate-200'
+                  }
                 >
                   {link.label}
                 </a>
@@ -102,7 +107,7 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
               <a
                 href="#simulador"
                 onClick={onClose}
-                className="mb-3 block w-full rounded-2xl bg-[#0d172e] px-6 py-4 text-center text-sm font-extrabold text-white"
+                className="mb-3 block w-full rounded-2xl bg-blue-100 hover:bg-blue-500 text-white font-bold text-sm px-6 py-4 text-center text-sm font-extrabold text-white"
               >
                 Simular Consórcio
               </a>
