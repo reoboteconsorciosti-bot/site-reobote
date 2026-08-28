@@ -15,6 +15,7 @@ const navLinks = [
   { href: '#mapa', label: 'Vendas' },
   { href: '#depoimentos', label: 'Depoimentos' },
   { href: '#quem-somos', label: 'Quem somos' },
+  { href: '/parceria-ufms', label: 'Parceria UFMS' },
   { href: '#faq', label: 'FAQ' },
 ] as const
 

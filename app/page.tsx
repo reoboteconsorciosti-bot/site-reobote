@@ -555,6 +555,13 @@ export default function Page() {
             <a href="#mapa" className="nav-link">Vendas</a>
             <a href="#depoimentos" className="nav-link">Depoimentos</a>
             <a href="#quem-somos" className="nav-link">Quem somos</a>
+            <a
+              href="/parceria-ufms"
+              className="nav-link"
+              onClick={() => fpixel.event('ViewContent', { content_name: 'Nav - Parceria UFMS' })}
+            >
+              Parceria UFMS
+            </a>
             <a href="#faq" className="nav-link">FAQ</a>
           </nav>
           <div className="header-actions">

@@ -14,7 +14,6 @@ import {
   MapPin,
   TrendingUp,
   IdCard,
-  FileCheck2,
   PiggyBank,
   Play,
   X,
@@ -238,6 +237,20 @@ export default function ParceriaUfmsPage() {
             EXATAMENTE em #0d172e (mesmo tom do Simulador/Banner logo
             abaixo), pra não criar costura na virada de seção. */}
         <section data-header-theme="dark" className="relative bg-gradient-to-b from-[#1b2f57] to-[#0d172e] text-white overflow-hidden pt-24 pb-14 sm:pt-32 sm:pb-20">
+          {/* Foto real do campus UFMS ao fundo — antes o hero só tinha
+              gradiente liso + blobs de blur, sem nenhuma imagem de verdade.
+              Opacidade baixa + gradiente escuro por cima garantem que o
+              texto branco continue legível; a foto vira só textura de
+              contexto, não compete com o conteúdo. */}
+          <img
+            src="/images/ufms-parceria/ufms-foto-monumento.png"
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            decoding="async"
+            className="absolute inset-0 w-full h-full object-cover object-top opacity-[0.45]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#1b2f57]/75 via-[#0d172e]/65 to-[#0d172e]/90" />
           <div className="absolute inset-0 pointer-events-none opacity-40">
             <div className="absolute top-0 right-0 w-[420px] h-[420px] bg-blue-500/20 rounded-full blur-[120px]" />
             <div className="absolute bottom-0 left-0 w-[320px] h-[320px] bg-cyan-400/10 rounded-full blur-[100px]" />
@@ -467,7 +480,21 @@ export default function ParceriaUfmsPage() {
             destoava do navy usado no resto do site. */}
         <section data-header-theme="dark" className="bg-[#0d172e] py-10 sm:py-12">
           <div className="max-w-5xl mx-auto px-4 sm:px-6">
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#009CDE] to-[#006b99] p-6 sm:p-10 flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+            <div className="relative overflow-hidden rounded-3xl p-6 sm:p-10 flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+              {/* Foto real do campus (letreiro "SOU UFMS") no lugar do
+                  gradiente liso — o card era só cor sólida, sem nenhuma
+                  imagem. Overlay azul por cima mantém a identidade visual
+                  (mesmo tom do gradiente antigo) e garante contraste pro
+                  texto branco. */}
+              <img
+                src="/images/ufms-parceria/sou-ufms.png"
+                alt=""
+                aria-hidden="true"
+                loading="lazy"
+                decoding="async"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-br from-[#009CDE]/90 to-[#006b99]/95" />
               <div className="absolute -top-10 -right-10 w-56 h-56 rounded-full bg-white/10 blur-3xl pointer-events-none" />
               <div className="relative shrink-0 w-16 h-16 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center">
                 <Gift className="w-8 h-8 text-white" />
@@ -502,27 +529,41 @@ export default function ParceriaUfmsPage() {
             benefícios de verdade — um heading só, uma seção só. */}
         <section data-header-theme="light" className="bg-soft py-14 sm:py-20">
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <div className="text-center max-w-2xl mx-auto mb-6">
-              <span className="section-tag justify-center">Vantagens da parceria</span>
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#313335] tracking-tight mt-3">
-                Feito para a rotina de quem estuda e trabalha na UFMS.
-              </h2>
-            </div>
+            {/* Heading + chips à esquerda, foto do letreiro "Sou UFMS" à
+                direita — a seção era só texto (título + chips), sem
+                nenhuma imagem. No mobile a foto entra logo depois dos
+                chips, antes dos 3 cards de benefícios abaixo. */}
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.9fr] lg:gap-12 xl:gap-16 lg:items-center mb-10 sm:mb-14">
+              <div className="text-center lg:text-left">
+                <span className="section-tag justify-center lg:justify-start">Vantagens da parceria</span>
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#313335] tracking-tight mt-3">
+                  Feito para a rotina de quem estuda e trabalha na UFMS.
+                </h2>
 
-            <div className="flex flex-wrap items-center justify-center gap-2 mb-10 sm:mb-14">
-              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mr-1">Vale para</span>
-              {[
-                { label: 'Servidores ativos', Icon: Users },
-                { label: 'Aposentados e pensionistas', Icon: PiggyBank },
-                { label: 'Estudantes da UFMS', Icon: GraduationCap },
-              ].map(({ label, Icon }) => (
-                <span key={label} className="inline-flex items-center gap-1.5 bg-white border border-gray-200 rounded-full pl-2 pr-3.5 py-1.5 text-xs font-semibold text-[#313335]">
-                  <span className="w-5 h-5 rounded-full bg-[#009CDE]/8 text-[#006b99] flex items-center justify-center shrink-0">
-                    <Icon className="w-3 h-3" />
-                  </span>
-                  {label}
-                </span>
-              ))}
+                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 mt-6">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mr-1">Vale para</span>
+                  {[
+                    { label: 'Servidores ativos', Icon: Users },
+                    { label: 'Aposentados e pensionistas', Icon: PiggyBank },
+                    { label: 'Estudantes da UFMS', Icon: GraduationCap },
+                  ].map(({ label, Icon }) => (
+                    <span key={label} className="inline-flex items-center gap-1.5 bg-white border border-gray-200 rounded-full pl-2 pr-3.5 py-1.5 text-xs font-semibold text-[#313335]">
+                      <span className="w-5 h-5 rounded-full bg-[#009CDE]/8 text-[#006b99] flex items-center justify-center shrink-0">
+                        <Icon className="w-3 h-3" />
+                      </span>
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <img
+                src="/images/ufms-parceria/sou-ufms.png"
+                alt="Letreiro 'Sou UFMS' no campus da universidade"
+                loading="lazy"
+                decoding="async"
+                className="w-full h-56 sm:h-64 lg:h-72 object-cover rounded-3xl shadow-lg shadow-black/5 mt-8 lg:mt-0"
+              />
             </div>
 
             {/* dif-card/dif-icon são classes globais (compartilhadas com o
@@ -554,49 +595,6 @@ export default function ParceriaUfmsPage() {
           </div>
         </section>
 
-        {/* ---------- COMO GARANTIR O BENEFÍCIO ---------- */}
-        {/* bg-white (não bg-soft) — a seção anterior já ficou bg-soft depois
-            do merge com "quem tem direito"; sem isso viravam duas seções
-            claras iguais coladas, quebrando a alternância clara/branca. */}
-        <section data-header-theme="light" className="bg-white py-14 sm:py-20">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6">
-            <div className="text-center max-w-2xl mx-auto mb-10">
-              <span className="section-tag justify-center">Como garantir seu desconto</span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-[#313335] tracking-tight mt-3">
-                Simples assim, em duas etapas.
-              </h2>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-              <div className="bg-white border border-gray-200 rounded-2xl p-5 flex gap-4">
-                <span className="shrink-0 w-9 h-9 rounded-full bg-[#009CDE] text-white font-extrabold text-sm flex items-center justify-center">1</span>
-                <div>
-                  <h3 className="text-sm font-bold text-[#313335] mb-1">Simule seu consórcio</h3>
-                  <p className="text-sm text-slate-500 leading-relaxed">Escolha o valor e o tipo de consórcio no simulador logo abaixo.</p>
-                </div>
-              </div>
-              <div className="bg-white border border-gray-200 rounded-2xl p-5 flex gap-4">
-                <span className="shrink-0 w-9 h-9 rounded-full bg-[#009CDE] text-white font-extrabold text-sm flex items-center justify-center">2</span>
-                <div>
-                  <h3 className="text-sm font-bold text-[#313335] mb-1">Apresente seu vínculo com a UFMS</h3>
-                  <p className="text-sm text-slate-500 leading-relaxed">No atendimento com o Santarosa, mostre um dos documentos abaixo.</p>
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-wrap justify-center gap-2.5">
-              {[
-                { label: 'Carteira funcional (física ou digital)', Icon: IdCard },
-                { label: 'Carteira estudantil', Icon: GraduationCap },
-                { label: 'Documento oficial equivalente', Icon: FileCheck2 },
-              ].map(({ label, Icon }) => (
-                <span key={label} className="inline-flex items-center gap-2 bg-white border border-gray-200 text-[#313335] text-xs font-semibold px-4 py-2.5 rounded-full">
-                  <Icon className="w-3.5 h-3.5 text-[#009CDE]" />
-                  {label}
-                </span>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* ---------- SEGMENTOS — mesmos 4 cards de sempre (Imóvel, Automóvel,
             Investimento, Outros), na visualização do componente Segments do
             site institucional (components/site/segments.tsx): card claro,
@@ -606,9 +604,12 @@ export default function ParceriaUfmsPage() {
             imagens do site — mantém o fallback em gradiente com ícone.
             Detalhe à parte da versão do site institucional: o selo "100%
             off" nos segmentos elegíveis pela parceria. ---------- */}
-        {/* bg-soft — "Como garantir" logo acima já é branca; sem isso viravam
-            duas seções brancas coladas de novo. */}
-        <section data-header-theme="light" className="bg-soft py-14 sm:py-20">
+        {/* bg-soft mantido (os cards aqui são sólidos brancos — só têm
+            contraste contra fundo soft) — mas "Vantagens da parceria" logo
+            acima também é bg-soft agora (a seção "Como garantir" que ficava
+            entre as duas foi removida), então ganhou border-t pra marcar a
+            virada sem precisar trocar a cor de nenhuma das duas. */}
+        <section data-header-theme="light" className="bg-soft border-t border-gray-200/70 py-14 sm:py-20">
           <div className="max-w-4xl mx-auto px-4 sm:px-6">
             <div className="text-center max-w-2xl mx-auto mb-10">
               <span className="section-tag justify-center">O que dá pra conquistar</span>
