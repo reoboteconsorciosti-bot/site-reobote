@@ -1,9 +1,12 @@
 // Lógica compartilhada entre as rotas de webhook do simulador
-// (/api/simulador-webhook e /api/simulador-webhook-ufms): validação do
-// payload, montagem da mensagem formatada e o encaminhamento HTTP para o
-// integrador externo. Cada rota só decide PARA ONDE encaminhar (qual URL,
-// método e segredo) — o formato do payload e da mensagem é sempre o mesmo,
-// como pedido: "reaproveitar o payload e estrutura, apenas mude o webhook".
+// (/api/simulador-webhook e /api/simulador-webhook-ufms). As duas rotas NÃO
+// compartilham mais o mesmo formato de payload — o simulador do site
+// institucional tem CRM + etapa de agendamento (ver SimuladorPayload); o da
+// LP UFMS foi desconectado do CRM e da etapa de agendamento por completo,
+// só sobra tipo/valor + dados pessoais (ver SimuladorPayloadUFMS). O que
+// continua compartilhado é só o encanamento HTTP de envio pro webhook
+// externo (encaminharParaWebhookExterno) — cada rota decide pra onde
+// encaminhar (URL/método/segredo) e com qual payload/mensagem.
 
 export interface SimuladorPayload {
   tipoConsórcio: string
@@ -85,6 +88,83 @@ export function validarPayload(body: unknown): body is SimuladorPayload {
   return true
 }
 
+// ─── Payload simplificado da LP UFMS — sem CRM e sem etapa de agendamento
+// (ver components/site/simulator-ufms.tsx). Só tipo/valor de consórcio +
+// dados pessoais; o webhook é o único destino, nada mais é chamado. ───────
+
+export interface SimuladorPayloadUFMS {
+  tipoConsórcio: string
+  desejaSimular: 'Valor do Crédito' | 'Valor da Parcela'
+  valorDesejado: number
+  nome: string
+  telefone: string
+  perguntaExtraTipo: 'motivacao' | 'prazo'
+  motivoInteresse?: string
+  prazoContratacao?:
+    | 'compra imediata'
+    | 'curto prazo (até 30 dias)'
+    | 'médio prazo (até 3 meses)'
+    | 'apenas pesquisando por enquanto'
+  origem?: string
+}
+
+export function validarPayloadUFMS(body: unknown): body is SimuladorPayloadUFMS {
+  if (!body || typeof body !== 'object') return false
+
+  const b = body as Record<string, unknown>
+
+  const camposObrigatorios = ['tipoConsórcio', 'desejaSimular', 'valorDesejado', 'nome', 'telefone', 'perguntaExtraTipo']
+  for (const campo of camposObrigatorios) {
+    if (!(campo in b)) return false
+  }
+
+  if (typeof b.tipoConsórcio !== 'string' || b.tipoConsórcio.trim().length === 0) return false
+  if (b.desejaSimular !== 'Valor do Crédito' && b.desejaSimular !== 'Valor da Parcela') return false
+  if (typeof b.valorDesejado !== 'number' || isNaN(b.valorDesejado) || b.valorDesejado <= 0) return false
+  if (typeof b.nome !== 'string' || b.nome.trim().length < 2) return false
+  if (typeof b.telefone !== 'string' || b.telefone.replace(/\D/g, '').length < 11) return false
+  if (b.perguntaExtraTipo !== 'motivacao' && b.perguntaExtraTipo !== 'prazo') return false
+  if (b.perguntaExtraTipo === 'motivacao') {
+    if (typeof b.motivoInteresse !== 'string' || b.motivoInteresse.trim().length < 3) return false
+  } else {
+    const opcoes = [
+      'compra imediata',
+      'curto prazo (até 30 dias)',
+      'médio prazo (até 3 meses)',
+      'apenas pesquisando por enquanto',
+    ] as const
+    if (
+      typeof b.prazoContratacao !== 'string' ||
+      !opcoes.includes(b.prazoContratacao as (typeof opcoes)[number])
+    ) {
+      return false
+    }
+  }
+
+  return true
+}
+
+export function montarMensagemUFMS(p: SimuladorPayloadUFMS, origemPadrao: string): string {
+  const valorFormatado = formatarBRL(p.valorDesejado)
+  const linhaExtra =
+    p.perguntaExtraTipo === 'motivacao'
+      ? `• Motivo do Interesse: ${p.motivoInteresse}`
+      : `• Prazo para Contratar: ${p.prazoContratacao}`
+
+  return [
+    `*NOVO LEAD - PARCERIA UFMS*`,
+    ``,
+    `• Nome: ${p.nome}`,
+    `• WhatsApp: ${p.telefone}`,
+    `• Tipo de Consórcio: ${p.tipoConsórcio}`,
+    `• Modo de Simulação: ${p.desejaSimular}`,
+    `• Valor Desejado: ${valorFormatado}`,
+    linhaExtra,
+    ``,
+    `Origem: ${p.origem || origemPadrao}`,
+  ].join('\n')
+}
+
 export function formatarBRL(v: number): string {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
 }
@@ -118,7 +198,7 @@ export interface WebhookAlvo {
 }
 
 export async function encaminharParaWebhookExterno(
-  payload: SimuladorPayload,
+  payload: SimuladorPayload | SimuladorPayloadUFMS,
   mensagem: string,
   telefoneDestino: string,
   alvo: WebhookAlvo,
@@ -163,17 +243,22 @@ export async function encaminharParaWebhookExterno(
       if (payload.perguntaExtraTipo === 'prazo' && payload.prazoContratacao) {
         params.set('prazoContratacao', payload.prazoContratacao)
       }
-      params.set('agendamentoOpcao', payload.agendamentoOpcao)
-      if (
-        (payload.agendamentoOpcao === 'hoje' || payload.agendamentoOpcao === 'amanha') &&
-        payload.agendamentoHorario
-      ) {
-        params.set('agendamentoHorario', payload.agendamentoHorario)
+      // Campos de agendamento só existem no payload do site institucional
+      // (ver SimuladorPayload) — o da LP UFMS (SimuladorPayloadUFMS) nunca
+      // tem esses campos, então checamos a presença antes de acessar.
+      if ('agendamentoOpcao' in payload) {
+        params.set('agendamentoOpcao', payload.agendamentoOpcao)
+        if (
+          (payload.agendamentoOpcao === 'hoje' || payload.agendamentoOpcao === 'amanha') &&
+          payload.agendamentoHorario
+        ) {
+          params.set('agendamentoHorario', payload.agendamentoHorario)
+        }
+        if (payload.agendamentoOpcao === 'outro' && payload.agendamentoDisponibilidade) {
+          params.set('agendamentoDisponibilidade', payload.agendamentoDisponibilidade)
+        }
+        params.set('reuniaoLead', payload.reuniaoLead)
       }
-      if (payload.agendamentoOpcao === 'outro' && payload.agendamentoDisponibilidade) {
-        params.set('agendamentoDisponibilidade', payload.agendamentoDisponibilidade)
-      }
-      params.set('reuniaoLead', payload.reuniaoLead)
 
       const separador = alvo.url.includes('?') ? '&' : '?'
       const urlFinal = `${alvo.url}${separador}${params.toString()}`

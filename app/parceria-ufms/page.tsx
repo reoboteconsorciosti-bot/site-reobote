@@ -20,7 +20,7 @@ import {
   Headset,
   ArrowUpRight,
 } from 'lucide-react'
-import { Simulator, type SimuladorPayload } from '@/components/site/simulator'
+import { SimulatorUFMS, type SimuladorPayloadUFMS } from '@/components/site/simulator-ufms'
 import { Testimonials } from '@/components/site/testimonials'
 import * as fpixel from '@/lib/fpixel'
 import { cn } from '@/lib/utils'
@@ -36,7 +36,7 @@ function formatBRL(v: number) {
 // Mensagem pré-preenchida que chega pronta pro consultor Santarosa assim que
 // o lead termina a simulação — usa os mesmos dados que o simulador já
 // coletou (tipo, valor, nome), sem pedir nada de novo pro usuário.
-function montarMensagemSantarosa(payload: SimuladorPayload) {
+function montarMensagemSantarosa(payload: SimuladorPayloadUFMS) {
   return [
     `Olá Santarosa! Sou da parceria UFMS.`,
     `Simulei um consórcio de ${payload.tipoConsórcio} no valor de ${formatBRL(payload.valorDesejado)}.`,
@@ -171,17 +171,25 @@ export default function ParceriaUfmsPage() {
     <>
       {/* ---------- HEADER — enxuto de propósito: sem menu completo, para não
           desviar atenção do objetivo único desta página (simular e falar
-          com o consultor). No topo fica opaco e "cheio"; ao rolar, encolhe
-          e vira translúcido com blur, deixando só logos + botão em
-          destaque. bg-[#0d172e]/80 (não 100% transparente) + backdrop-blur
-          — mantém contraste pra logo branca mesmo com seção clara atrás,
-          em vez de um blur "vazado" que lavava a logo. ---------- */}
+          com o consultor). Blur ativo sempre, do topo pra baixo (antes só
+          ligava depois de rolar 24px, e no topo — logo em cima do hero, que
+          agora tem foto de fundo — dava pra confundir com "sem blur"); ao
+          rolar, só encolhe o header e escurece um pouco mais o fundo.
+          bg-[#0d172e]/45 (não 100% transparente) + backdrop-blur — mantém
+          contraste pra logo branca mesmo com seção clara atrás, em vez de
+          um blur "vazado" que lavava a logo. ---------- */}
       <header
         className={cn(
-          'fixed top-0 inset-x-0 z-50 border-b transition-all duration-300',
-          headerScrolled
-            ? 'bg-[#0d172e]/45 backdrop-blur-[48px] border-white/10 shadow-lg shadow-black/20'
-            : 'bg-[#0d172e] border-white/5'
+          // `!` em backdrop-blur/bg/border: o CSS global tem uma regra
+          // `header { backdrop-filter: none; background: transparent;
+          // border-bottom: 1px solid transparent }` (herdada do site
+          // institucional) que, por estar fora de qualquer @layer, sempre
+          // vence as utilities do Tailwind (que ficam em @layer utilities)
+          // não importa a especificidade — é por isso que o blur nunca
+          // aparecia. O `!important` do Tailwind é a única forma de furar
+          // isso sem editar o CSS global (que é compartilhado com a home).
+          'fixed top-0 inset-x-0 z-50 !border-b !border-white/10 !backdrop-blur-[2px] transition-all duration-300',
+          headerScrolled ? '!bg-[#0d172e]/60' : '!bg-[#0d172e]/35'
         )}
       >
         <div
@@ -196,9 +204,17 @@ export default function ParceriaUfmsPage() {
               alt="Reobote Consórcios"
               className={cn('w-auto shrink-0 transition-all duration-300', headerScrolled ? 'h-7 sm:h-9' : 'h-9 sm:h-12')}
             />
-            <span className={cn('text-xl font-light shrink-0 transition-colors duration-300', headerSobreClaro ? 'text-slate-900/25' : 'text-white/30')}>
-              ×
-            </span>
+            {/* Linha divisória vertical entre as duas logos, em vez do "×" —
+                acompanha o mesmo esquema de cor (claro/escuro) e o mesmo
+                encolher no scroll que as logos já usam. */}
+            <span
+              aria-hidden="true"
+              className={cn(
+                'w-px shrink-0 transition-all duration-300',
+                headerScrolled ? 'h-6 sm:h-7' : 'h-7 sm:h-9',
+                headerSobreClaro ? 'bg-slate-900/20' : 'bg-white/20'
+              )}
+            />
             <img
               src="/logo-ufms.png"
               alt="UFMS"
@@ -236,21 +252,21 @@ export default function ParceriaUfmsPage() {
             resolvia pra plano cedo demais e quase não aparecia. Termina
             EXATAMENTE em #0d172e (mesmo tom do Simulador/Banner logo
             abaixo), pra não criar costura na virada de seção. */}
-        <section data-header-theme="dark" className="relative bg-gradient-to-b from-[#1b2f57] to-[#0d172e] text-white overflow-hidden pt-24 pb-14 sm:pt-32 sm:pb-20">
-          {/* Foto real do campus UFMS ao fundo — antes o hero só tinha
-              gradiente liso + blobs de blur, sem nenhuma imagem de verdade.
-              Opacidade baixa + gradiente escuro por cima garantem que o
-              texto branco continue legível; a foto vira só textura de
-              contexto, não compete com o conteúdo. */}
+        <section data-header-theme="dark" className="relative bg-gradient-to-b from-[#1b2f57] to-[#0d172e] text-white overflow-hidden pt-28 pb-20 sm:pt-40 sm:pb-28">
+          {/* Foto real do campus UFMS ao fundo — bem mais aparente agora
+              (opacidade alta); o overlay ficou mais fraco no meio da seção
+              (onde fica o título) e só volta a escurecer perto do rodapé,
+              pra continuar terminando em #0d172e sem costura com a seção
+              seguinte, e pro texto branco manter contraste legível. */}
           <img
             src="/images/ufms-parceria/ufms-foto-monumento.png"
             alt=""
             aria-hidden="true"
             loading="lazy"
             decoding="async"
-            className="absolute inset-0 w-full h-full object-cover object-top opacity-[0.45]"
+            className="absolute inset-0 w-full h-full object-cover object-top opacity-80"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#1b2f57]/75 via-[#0d172e]/65 to-[#0d172e]/90" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#1b2f57]/35 via-[#0d172e]/15 to-[#0d172e]/90" />
           <div className="absolute inset-0 pointer-events-none opacity-40">
             <div className="absolute top-0 right-0 w-[420px] h-[420px] bg-blue-500/20 rounded-full blur-[120px]" />
             <div className="absolute bottom-0 left-0 w-[320px] h-[320px] bg-cyan-400/10 rounded-full blur-[100px]" />
@@ -462,7 +478,7 @@ export default function ParceriaUfmsPage() {
                 </p>
               </div>
               <div className="flex justify-center">
-                <Simulator
+                <SimulatorUFMS
                   origemLabel="Parceria UFMS - Landing /parceria-ufms"
                   whatsappOverride={{ telefone: SANTAROSA_WHATSAPP, montarMensagem: montarMensagemSantarosa }}
                   webhookEndpoint="/api/simulador-webhook-ufms"
@@ -483,9 +499,10 @@ export default function ParceriaUfmsPage() {
             <div className="relative overflow-hidden rounded-3xl p-6 sm:p-10 flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
               {/* Foto real do campus (letreiro "SOU UFMS") no lugar do
                   gradiente liso — o card era só cor sólida, sem nenhuma
-                  imagem. Overlay azul por cima mantém a identidade visual
-                  (mesmo tom do gradiente antigo) e garante contraste pro
-                  texto branco. */}
+                  imagem. Overlay em degradê (mais opaco à esquerda, atrás
+                  do texto; mais transparente à direita, deixando a foto
+                  aparecer de verdade) — a versão anterior era quase opaca
+                  de ponta a ponta e a foto ficava "sólida"/apagada. */}
               <img
                 src="/images/ufms-parceria/sou-ufms.png"
                 alt=""
@@ -494,7 +511,7 @@ export default function ParceriaUfmsPage() {
                 decoding="async"
                 className="absolute inset-0 w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-br from-[#009CDE]/90 to-[#006b99]/95" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#0d172e]/85 via-[#009CDE]/60 to-[#006b99]/25" />
               <div className="absolute -top-10 -right-10 w-56 h-56 rounded-full bg-white/10 blur-3xl pointer-events-none" />
               <div className="relative shrink-0 w-16 h-16 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center">
                 <Gift className="w-8 h-8 text-white" />
@@ -609,8 +626,17 @@ export default function ParceriaUfmsPage() {
             acima também é bg-soft agora (a seção "Como garantir" que ficava
             entre as duas foi removida), então ganhou border-t pra marcar a
             virada sem precisar trocar a cor de nenhuma das duas. */}
-        <section data-header-theme="light" className="bg-soft border-t border-gray-200/70 py-14 sm:py-20">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6">
+        <section data-header-theme="light" className="relative overflow-hidden bg-soft border-t border-gray-200/70 py-14 sm:py-20">
+          {/* Seta da Reobote (extraída do logo oficial, /images/abertura/icon.svg)
+              como marca d'água decorativa atrás da seção — maior e mais
+              aparente que a versão anterior (era quase invisível). */}
+          <img
+            src="/images/ufms-parceria/reobote-seta.svg"
+            alt=""
+            aria-hidden="true"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] sm:w-[2000px] max-w-none opacity-[0.05] -rotate-6 pointer-events-none select-none"
+          />
+          <div className="relative max-w-4xl mx-auto px-4 sm:px-6">
             <div className="text-center max-w-2xl mx-auto mb-10">
               <span className="section-tag justify-center">O que dá pra conquistar</span>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-[#313335] tracking-tight mt-3">
@@ -645,10 +671,10 @@ export default function ParceriaUfmsPage() {
                 },
                 {
                   label: 'Outros segmentos',
-                  img: '/images/consorcio/post_thumbnail-92a23fafe8ad0a93598b44db4be69621.jpg',
+                  img: '/images/consorcio/Yamaha-R15-Marcelo-Barros-6.webp',
                   Icon: Layers,
                   desconto: false,
-                  description: 'Caminhões, máquinas agrícolas e serviços também podem ser simulados, fora da promoção de adesão.',
+                  description: 'Motos, máquinas agrícolas e serviços também podem ser simulados, fora da promoção de adesão.',
                 },
               ].map(({ label, img, Icon, desconto, description }) => (
                 <a
