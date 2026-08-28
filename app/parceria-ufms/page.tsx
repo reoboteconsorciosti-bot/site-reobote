@@ -253,20 +253,21 @@ export default function ParceriaUfmsPage() {
             EXATAMENTE em #0d172e (mesmo tom do Simulador/Banner logo
             abaixo), pra não criar costura na virada de seção. */}
         <section data-header-theme="dark" className="relative bg-gradient-to-b from-[#1b2f57] to-[#0d172e] text-white overflow-hidden pt-28 pb-20 sm:pt-40 sm:pb-28">
-          {/* Foto real do campus UFMS ao fundo — bem mais aparente agora
-              (opacidade alta); o overlay ficou mais fraco no meio da seção
-              (onde fica o título) e só volta a escurecer perto do rodapé,
-              pra continuar terminando em #0d172e sem costura com a seção
-              seguinte, e pro texto branco manter contraste legível. */}
+          {/* Foto real do campus UFMS ao fundo — mais transparente/visível
+              de novo (overlay mais fraco que a versão anterior), mas ainda
+              mantém um pouco mais escuro do lado do texto (esquerda, no
+              desktop) do que do lado do vídeo (direita), pra não voltar a
+              lavar a leitura por causa do sol estourado da foto. */}
           <img
             src="/images/ufms-parceria/ufms-foto-monumento.png"
             alt=""
             aria-hidden="true"
             loading="lazy"
             decoding="async"
-            className="absolute inset-0 w-full h-full object-cover object-top opacity-80"
+            className="absolute inset-0 w-full h-full object-cover object-top opacity-90"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#1b2f57]/35 via-[#0d172e]/15 to-[#0d172e]/90" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#1b2f57]/45 via-[#0d172e]/30 to-[#0d172e]/80" />
+          <div className="hidden lg:block absolute inset-0 bg-gradient-to-r from-[#0d172e]/50 via-[#0d172e]/12 to-transparent" />
           <div className="absolute inset-0 pointer-events-none opacity-40">
             <div className="absolute top-0 right-0 w-[420px] h-[420px] bg-blue-500/20 rounded-full blur-[120px]" />
             <div className="absolute bottom-0 left-0 w-[320px] h-[320px] bg-cyan-400/10 rounded-full blur-[100px]" />
@@ -290,7 +291,7 @@ export default function ParceriaUfmsPage() {
                   <span className="block text-[1.65rem] leading-[1.2] sm:text-4xl md:text-5xl sm:leading-[1.15] text-white">
                     Consórcio com condições exclusivas
                   </span>
-                  <span className="block text-4xl leading-[1.15] sm:text-5xl md:text-6xl mt-1 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">
+                  <span className="block text-5xl leading-[1.1] sm:text-6xl md:text-7xl mt-1 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">
                     pra quem é UFMS
                   </span>
                 </h1>
@@ -455,12 +456,17 @@ export default function ParceriaUfmsPage() {
             com a atenção ainda no topo. CTA final vai para o WhatsApp do
             Santarosa, nunca para o número geral da Reobote (ver
             whatsappOverride). ---------- */}
-        {/* Mesmo #0d172e do hero: agora que o simulador ficou colado nele,
-            usar o #070b13 do simulador da home criaria um degradê estranho
-            (escuro → um pouco mais escuro → escuro de novo) antes da seção
-            clara. Assim vira um único bloco escuro contínuo. */}
-        <section id="simulador" data-header-theme="dark" className="py-14 sm:py-20 bg-[#0d172e] border-t border-b border-white/5 text-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        {/* Degradê sutil: começa e termina exatamente em #0d172e (mesmo tom
+            do hero acima e do banner "Vantagem exclusiva" logo abaixo), só
+            que respira um pouco mais claro/azulado no meio da seção — dá
+            elegância sem criar costura visível com nenhuma das duas
+            vizinhas. Um glow radial bem discreto atrás do card reforça essa
+            sensação de profundidade, sem chamar atenção pra si mesmo. */}
+        <section id="simulador" data-header-theme="dark" className="relative overflow-hidden py-14 sm:py-20 bg-gradient-to-b from-[#0d172e] via-[#15264a] to-[#0d172e] border-t border-b border-white/5 text-white">
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute top-1/2 right-[10%] -translate-y-1/2 w-[520px] h-[520px] bg-[#009CDE]/10 rounded-full blur-[140px]" />
+          </div>
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
             {/* Mesmo padrão de 2 colunas do hero: no mobile o texto vem
                 empilhado acima do simulador (ordem de sempre); no desktop
                 (lg+) o texto vai pra esquerda e o simulador pra direita,
