@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { siteConfig, whatsappLink } from '@/lib/site-config'
 import {
-  type SimuladorPayload,
   validarPayload,
   formatarBRL,
   montarMensagem,
@@ -11,19 +10,22 @@ import {
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export type { SimuladorPayload }
+// Webhook dedicado da landing /parceria-ufms — não pode compartilhar o
+// WHATSAPP_WEBHOOK_URL do site institucional (esse aqui é controlado pelo
+// n8n do lado da parceria, com automação própria). Payload e mensagem
+// enviados são exatamente os mesmos de /api/simulador-webhook (ver
+// lib/simulador-webhook.ts); só o destino muda. Dá pra sobrescrever via env
+// (LP_UFMS_WEBHOOK_URL) sem depender de rebuild, mas o padrão já é o n8n da
+// parceria.
+const UFMS_WEBHOOK_URL =
+  process.env.LP_UFMS_WEBHOOK_URL || 'https://reobote-n8n.to0i0r.easypanel.host/webhook/lp-ufms'
 
 export async function POST(request: Request) {
-  console.log('[ROUTE] Recebido POST em /api/simulador-webhook')
-  console.log('[ROUTE] Env vars:', {
-    url: process.env.WHATSAPP_WEBHOOK_URL ? 'SET' : 'NOT SET',
-    url_public: process.env.NEXT_PUBLIC_WHATSAPP_WEBHOOK_URL ? 'SET' : 'NOT SET',
-    method: process.env.WHATSAPP_WEBHOOK_METHOD || 'default(POST)',
-  })
+  console.log('[ROUTE-UFMS] Recebido POST em /api/simulador-webhook-ufms')
 
   try {
     const body = await request.json()
-    console.log('[ROUTE] Payload recebido:', JSON.stringify(body))
+    console.log('[ROUTE-UFMS] Payload recebido:', JSON.stringify(body))
 
     if (!validarPayload(body)) {
       return NextResponse.json(
@@ -50,18 +52,18 @@ export async function POST(request: Request) {
       )
     }
 
-    const mensagem = montarMensagem(body, 'Simulador Online - site Reobote Consórcios')
+    const mensagem = montarMensagem(body, 'Simulador Online - Parceria UFMS')
 
     const resultadoWebhook = await encaminharParaWebhookExterno(
       body,
       mensagem,
       siteConfig.whatsapp,
       {
-        url: process.env.WHATSAPP_WEBHOOK_URL || process.env.NEXT_PUBLIC_WHATSAPP_WEBHOOK_URL || '',
-        metodo: (process.env.WHATSAPP_WEBHOOK_METHOD || 'POST').toUpperCase() as 'GET' | 'POST' | 'PUT',
-        secret: process.env.WHATSAPP_WEBHOOK_SECRET,
+        url: UFMS_WEBHOOK_URL,
+        metodo: (process.env.LP_UFMS_WEBHOOK_METHOD || 'POST').toUpperCase() as 'GET' | 'POST' | 'PUT',
+        secret: process.env.LP_UFMS_WEBHOOK_SECRET,
       },
-      '[WEBHOOK]'
+      '[WEBHOOK-UFMS]'
     )
 
     const linkWhatsapp = whatsappLink(mensagem)
@@ -81,7 +83,7 @@ export async function POST(request: Request) {
     )
   } catch (erro) {
     const msg = erro instanceof Error ? erro.message : String(erro)
-    console.error('[ROUTE] Erro interno:', msg)
+    console.error('[ROUTE-UFMS] Erro interno:', msg)
     return NextResponse.json(
       {
         sucesso: false,

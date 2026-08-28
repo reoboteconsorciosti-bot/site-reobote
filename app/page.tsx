@@ -1031,7 +1031,7 @@ export default function Page() {
             <p className="subtitle-blue"><i>"Transformando desejos reais, em realidade."</i></p>
 
             <p className="description-text">
-              Com mais de <strong>10 anos de atuação no mercado</strong>, a Reobote Consórcios se consolidou com <strong>mais de 1,5 BI em carteira</strong> sob nossa gestão e <strong>Mais de 4k de clientes atendidos</strong> com os maiores índices de satisfação do setor.
+              Com <strong>12 anos de atuação no mercado</strong>, a Reobote Consórcios se consolidou com <strong>mais de 1,5 BI em carteira</strong> sob nossa gestão e <strong>Mais de 4k de clientes atendidos</strong> com os maiores índices de satisfação do setor.
             </p>
 
             <blockquote className="quote-box">

@@ -111,6 +111,12 @@ interface SimulatorProps {
   // consultor — default preserva o texto usado hoje no site institucional.
   origemLabel?: string
   whatsappOverride?: WhatsappOverride
+  // Rota interna que recebe o payload da simulação e encaminha pro webhook
+  // externo. Default preserva o comportamento de sempre (webhook geral do
+  // site). Landings com automação própria (ex: /parceria-ufms → n8n
+  // dedicado) passam sua própria rota aqui — nunca compartilham o webhook
+  // do site institucional.
+  webhookEndpoint?: string
 }
 
 // Nomes em pt-BR usados para montar a data por extenso a partir de
@@ -182,6 +188,7 @@ interface WebhookResposta {
 export function Simulator({
   origemLabel = 'Simulador Online - site Reobote Consórcios',
   whatsappOverride,
+  webhookEndpoint = '/api/simulador-webhook',
 }: SimulatorProps = {}) {
   const [segmentId, setSegmentId] = useState<SegmentId>('imoveis')
   const [simMode, setSimMode] = useState<'credito' | 'parcela'>('credito')
@@ -492,7 +499,7 @@ export function Simulator({
         // do simulador para o consultor saber que houve interesse mesmo sem
         // o deal ter sido criado no CRM.
         try {
-          await fetch('/api/simulador-webhook', {
+          await fetch(webhookEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -641,7 +648,7 @@ export function Simulator({
       const payload = construirPayload()
       setLastPayload(payload)
 
-      const resposta = await fetch('/api/simulador-webhook', {
+      const resposta = await fetch(webhookEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

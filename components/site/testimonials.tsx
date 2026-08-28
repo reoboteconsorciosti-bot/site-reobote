@@ -166,7 +166,13 @@ const initialTestimonials: VideoTestimonial[] = [
 
 export function Testimonials() {
   const trackRef = useRef<HTMLDivElement>(null)
-  const [isPaused, setIsPaused] = useState(false)
+  // Ref, não state: pause/resume acontece a cada toque (touchstart/touchend)
+  // durante o gesto de arrastar o carrossel — se fosse state, cada toque
+  // forçaria um re-render dos ~18 cards duplicados no meio do swipe, o que
+  // travava/"bugava" o arraste manual no celular. Ref muda na hora, sem
+  // re-render, e o loop de auto-scroll abaixo lê o valor mais atual a cada
+  // frame (sem esperar o ciclo de render do React).
+  const isPausedRef = useRef(false)
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
 
   const toggleVideo = (index: number) => {
@@ -207,7 +213,11 @@ export function Testimonials() {
   // 1px, ler-somar-gravar nele descartaria a parte fracionária a cada frame
   // e a rolagem nunca avançaria (fica "tentando" e parada no mesmo pixel).
   useEffect(() => {
-    if (isPaused || activeIndex !== null) return
+    // activeIndex (abrir/fechar vídeo) é um clique deliberado, raro — tudo
+    // bem reiniciar o efeito nele. Pause por arraste (mouse/touch) já não
+    // passa mais por aqui: é lido via ref a cada frame dentro do próprio
+    // step(), sem precisar reiniciar o efeito nem re-renderizar.
+    if (activeIndex !== null) return
 
     const track = trackRef.current
     if (!track) return
@@ -217,6 +227,17 @@ export function Testimonials() {
     let offset = track.scrollLeft
 
     const step = (timestamp: number) => {
+      if (isPausedRef.current) {
+        // Usuário arrastando: não briga com o gesto. Só mantém `offset`
+        // sincronizado com a posição real (que o toque está movendo por
+        // fora do React), pra retomar exatamente dali quando soltar —
+        // sem pulo nem "puxão" de volta.
+        offset = track.scrollLeft
+        lastTimestamp = null
+        frameId = window.requestAnimationFrame(step)
+        return
+      }
+
       if (lastTimestamp !== null) {
         const deltaSeconds = (timestamp - lastTimestamp) / 1000
         offset += AUTO_SCROLL_SPEED * deltaSeconds
@@ -234,7 +255,7 @@ export function Testimonials() {
 
     frameId = window.requestAnimationFrame(step)
     return () => window.cancelAnimationFrame(frameId)
-  }, [isPaused, activeIndex])
+  }, [activeIndex])
 
   return (
     <section id="depoimentos" className="bg-[#0a0f1d] py-16 md:py-24 text-white">
@@ -277,15 +298,15 @@ export function Testimonials() {
         {/* Janela de Visualização (Track Wrapper) */}
         <div
           className="relative w-full overflow-hidden"
-          onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
+          onMouseEnter={() => { isPausedRef.current = true }}
+          onMouseLeave={() => { isPausedRef.current = false }}
           // No celular não existe mouseenter/mouseleave — sem isso, o loop de
           // auto-scroll continuava sobrescrevendo track.scrollLeft a cada
           // frame por cima do gesto de arrastar do usuário, travando o swipe.
           // Pausa durante o toque e só retoma a esteira automática depois.
-          onTouchStart={() => setIsPaused(true)}
-          onTouchEnd={() => setIsPaused(false)}
-          onTouchCancel={() => setIsPaused(false)}
+          onTouchStart={() => { isPausedRef.current = true }}
+          onTouchEnd={() => { isPausedRef.current = false }}
+          onTouchCancel={() => { isPausedRef.current = false }}
         >
           {/* Fileira dos Cards (Carrossel Container) */}
           <div
