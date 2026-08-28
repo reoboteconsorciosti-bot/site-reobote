@@ -110,9 +110,7 @@ export default function ParceriaUfmsPage() {
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <img src="/images/abertura/icon.svg" alt="Reobote Consórcios" className="h-7 sm:h-9 w-auto shrink-0" />
             <span className="text-white/30 text-lg font-light shrink-0">×</span>
-            {/* Placeholder textual — trocar por <img> com a logo oficial da
-                UFMS assim que o arquivo for enviado (ver public/images/logo). */}
-            <span className="text-[11px] sm:text-sm font-bold text-white tracking-tight truncate">UFMS</span>
+            <img src="/logo-ufms.png" alt="UFMS" className="h-8 sm:h-10 w-auto shrink-0" />
           </div>
           <a
             href={santarosaLink('Olá Santarosa! Vim pela parceria UFMS e gostaria de falar sobre consórcio.')}
