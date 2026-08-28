@@ -21,6 +21,9 @@ export interface SimuladorPayload {
   agendamentoHorario?: string
   agendamentoDisponibilidade?: string
   reuniaoLead: string
+  // Opcional para manter compatibilidade com chamadores antigos do payload
+  // (ex: integrações externas) que ainda não enviam esse campo.
+  origem?: string
 }
 
 function validarPayload(body: unknown): body is SimuladorPayload {
@@ -103,7 +106,7 @@ function montarMensagem(p: SimuladorPayload): string {
     linhaExtra,
     `• Reunião: ${p.reuniaoLead}`,
     ``,
-    `Origem: Simulador Online - site Reobote Consórcios`,
+    `Origem: ${p.origem || 'Simulador Online - site Reobote Consórcios'}`,
   ].join('\n')
 }
 

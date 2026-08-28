@@ -75,7 +75,7 @@ type PrazoContratacao =
   | 'apenas pesquisando por enquanto'
 type AgendamentoOpcao = 'hoje' | 'amanha' | 'outro'
 
-interface SimuladorPayload {
+export interface SimuladorPayload {
   tipoConsórcio: string
   desejaSimular: 'Valor do Crédito' | 'Valor da Parcela'
   valorDesejado: number
@@ -90,6 +90,27 @@ interface SimuladorPayload {
   // Resumo pronto em texto do que o lead escolheu na tela de agendamento,
   // já formatado para entrar direto na mensagem enviada ao webhook/WhatsApp.
   reuniaoLead: string
+  // Rótulo de origem do lead (ex: landing de parceria) — identifica no CRM
+  // e na notificação interna de onde o lead veio. Ver prop `origemLabel`.
+  origem: string
+}
+
+// Permite que uma página específica (ex: landing de parceria) desvie o CTA
+// final do simulador para um WhatsApp/consultor dedicado, sem tocar no
+// fluxo padrão (CRM, agendamento, notificação interna) usado pelo resto do
+// site. Quando ausente, o comportamento é o de sempre: usa o link devolvido
+// por /api/simulador-webhook (número geral da Reobote).
+interface WhatsappOverride {
+  // Número em formato internacional, só dígitos (ex: "5567981860175").
+  telefone: string
+  montarMensagem: (payload: SimuladorPayload) => string
+}
+
+interface SimulatorProps {
+  // Identifica a origem do lead no CRM e na notificação interna do
+  // consultor — default preserva o texto usado hoje no site institucional.
+  origemLabel?: string
+  whatsappOverride?: WhatsappOverride
 }
 
 // Nomes em pt-BR usados para montar a data por extenso a partir de
@@ -158,7 +179,10 @@ interface WebhookResposta {
   erro?: string
 }
 
-export function Simulator() {
+export function Simulator({
+  origemLabel = 'Simulador Online - site Reobote Consórcios',
+  whatsappOverride,
+}: SimulatorProps = {}) {
   const [segmentId, setSegmentId] = useState<SegmentId>('imoveis')
   const [simMode, setSimMode] = useState<'credito' | 'parcela'>('credito')
   const [value, setValue] = useState<number>(300000)
@@ -404,7 +428,7 @@ export function Simulator() {
             nome: name.trim(),
             telefone: phone,
             descricao: montarDescricaoDeal(),
-            origem: 'Simulador Online - site Reobote Consórcios',
+            origem: origemLabel,
           }),
         })
         const dados = await resposta.json().catch(() => null)
@@ -536,6 +560,7 @@ export function Simulator() {
       agendamentoDisponibilidade:
         agendamentoOpcao === 'outro' ? agendamentoDisponibilidade.trim() : undefined,
       reuniaoLead: montarReuniaoLead(),
+      origem: origemLabel,
     }
   }
 
@@ -638,7 +663,15 @@ export function Simulator() {
         currency: 'BRL'
       })
 
-      if (dados.linkWhatsapp) {
+      // Página com consultor dedicado (ex: landing de parceria): o lead
+      // sempre cai no WhatsApp desse consultor, nunca no número geral que
+      // /api/simulador-webhook devolveria por padrão — o resto do fluxo
+      // (CRM, agendamento, notificação interna) já rodou normalmente acima.
+      if (whatsappOverride) {
+        setLinkWhatsappGerado(
+          `https://wa.me/${whatsappOverride.telefone}?text=${encodeURIComponent(whatsappOverride.montarMensagem(payload))}`
+        )
+      } else if (dados.linkWhatsapp) {
         setLinkWhatsappGerado(dados.linkWhatsapp)
       }
     } catch (err) {
