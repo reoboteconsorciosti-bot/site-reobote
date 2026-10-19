@@ -31,8 +31,8 @@ import * as fpixel from '@/lib/fpixel'
 import { cn } from '@/lib/utils'
 
 // ─── Wi-Fi de visitantes ────────────────────────────────────────────────────
-// Preencha com os dados reais da rede. Enquanto `rede` ou `senha` estiverem
-// vazios, a página não inventa nada: mostra "peça a senha na recepção".
+// Rede e senha ficam fora do código de propósito (o repositório guarda o
+// histórico): a placa da parede já traz o QR do Wi-Fi e a senha impressa.
 // Quando o portal cativo estiver configurado, o redirecionamento pós-login
 // deve apontar para /visitantes?conectado=1 — aí a página já recebe o
 // visitante dizendo que ele está conectado, sem mostrar senha nenhuma.
@@ -287,8 +287,8 @@ function InfoWifi({ conectado, rastrear }: { conectado: boolean; rastrear: (acao
   if (!WIFI.rede || !WIFI.senha) {
     return (
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left">
-        <p className="font-bold text-white">A senha está com a nossa recepção</p>
-        <p className="text-sm text-slate-300 mt-0.5">É só pedir pra qualquer pessoa do time. 😊</p>
+        <p className="font-bold text-white">Use o QR code ① da placa</p>
+        <p className="text-sm text-slate-300 mt-0.5">Aponte a câmera para ele e o celular conecta sozinho. A rede e a senha também estão escritas na placa.</p>
       </div>
     )
   }
