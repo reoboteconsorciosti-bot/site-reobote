@@ -44,7 +44,7 @@ function getYouTubeId(input: string) {
   return match?.[1] || null
 }
 
-const initialTestimonials: VideoTestimonial[] = [
+export const initialTestimonials: VideoTestimonial[] = [
   {
     id: 9,
     name: 'Teomar Garcia',

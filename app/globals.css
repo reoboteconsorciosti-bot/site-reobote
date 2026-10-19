@@ -2221,3 +2221,102 @@ input[type="range"]::-moz-range-thumb {
     padding: 90px 0 !important;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   /visitantes — tour em formato "stories" (QR code do Wi-Fi de visitantes)
+───────────────────────────────────────────────────────────────────────────── */
+@keyframes vis-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes vis-rise {
+  from { opacity: 0; transform: translateY(18px); filter: blur(6px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+@keyframes vis-kenburns {
+  from { transform: scale(1.14) translate3d(0, -1.5%, 0); }
+  to { transform: scale(1) translate3d(0, 0, 0); }
+}
+
+/* Cada camada fica visível por 1/3 do ciclo — 3 fotos se revezam dentro de
+   um mesmo card, cada uma com animation-delay de 1/3 da duração. */
+@keyframes vis-cycle {
+  0% { opacity: 0; }
+  5% { opacity: 1; }
+  33.3% { opacity: 1; }
+  38% { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+@keyframes vis-tap {
+  0%, 100% { transform: translateX(0) scale(1); }
+  50% { transform: translateX(8px) scale(0.9); }
+}
+
+@keyframes vis-ring {
+  from { transform: scale(0.6); opacity: 0.55; }
+  to { transform: scale(1.9); opacity: 0; }
+}
+
+@keyframes vis-sheet {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
+@keyframes vis-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.vis-fill {
+  transform-origin: left center;
+  animation: vis-fill linear forwards;
+}
+
+.vis-rise {
+  animation: vis-rise 0.75s var(--ease) both;
+}
+
+.vis-kenburns {
+  animation: vis-kenburns 14s ease-out both;
+}
+
+.vis-cycle {
+  opacity: 0;
+  animation: vis-cycle linear both;
+}
+
+.vis-tap {
+  animation: vis-tap 1.6s ease-in-out infinite;
+}
+
+.vis-ring {
+  animation: vis-ring 2.4s ease-out infinite;
+}
+
+.vis-sheet {
+  animation: vis-sheet 0.45s var(--ease) both;
+}
+
+.vis-fade {
+  animation: vis-fade 0.3s ease-out both;
+}
+
+/* Segurar o dedo na tela (ou abrir a gaveta do Wi-Fi) congela tudo de uma
+   vez: a barra de progresso — que é quem dispara a troca de card no
+   onAnimationEnd — e as animações de dentro do card. */
+.vis-paused,
+.vis-paused * {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vis-rise,
+  .vis-kenburns,
+  .vis-tap,
+  .vis-ring {
+    animation: none;
+  }
+}
